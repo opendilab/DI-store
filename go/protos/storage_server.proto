@@ -1,0 +1,34 @@
+syntax = "proto3";
+
+option go_package = "pb/storage_server";
+
+package di_store.storage_server;
+
+service ObjectStore {
+    rpc fetch (FetchRequest) returns (FetchResponse) {}
+    rpc get (GetRequest) returns (GetResponse) {}
+    rpc delete (DeleteRequest) returns (DeleteResponse) {}
+}
+
+message DeleteRequest {
+    repeated string object_id_hex_list = 1;
+}
+
+message DeleteResponse {
+
+}
+
+message FetchRequest {
+    string object_id_hex = 1;
+}
+
+message FetchResponse {}
+
+message GetRequest {
+    string object_id_hex = 1;
+}
+
+message GetResponse {
+    bool not_found = 1;
+    bytes data = 2;
+}

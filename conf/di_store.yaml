@@ -1,0 +1,21 @@
+etcd_servers:
+  - hostname: localhost
+    listen_client_urls:
+      - http://127.0.0.1:2379
+    listen_peer_urls:
+      - http://127.0.0.1:2380
+
+node_trackers:
+  - hostname: localhost
+    rpc_host: 127.0.0.1
+    rpc_port: 50051
+
+storage_servers:
+  - hostname: "*"
+    rpc_port: 0
+    plasma_socket: /tmp/plasma
+    plasma_memory_byte: 1000000000
+
+storage_clients:
+  - hostname: "*"
+    storage_server: "{hostname}"
