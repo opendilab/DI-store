@@ -74,7 +74,7 @@ class StorageClient(object):
         return object_id_hex
 
     def fetch(self, object_id_hex):
-        with grpc.insecure_channel(self.node_tracker_rpc_target) as channel:
+        with grpc.insecure_channel(self.server_rpc_target) as channel:
             stub = storage_server_pb2_grpc.ObjectStoreStub(channel)
             stub.fetch(storage_server_pb2.FetchRequest(
                 object_id_hex=object_id_hex))
