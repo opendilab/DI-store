@@ -1,13 +1,23 @@
 import sys
 import subprocess
+import os
+import signal
 from os import path
 from di_store.driver.etcd_server_driver import main as etcd_server_driver_main
 
+platform = sys.platform
+if platform not in ('darwin', 'linux'):
+    raise Exception(f'unsupported platform: {platform}')
+
 dir_path = path.dirname(path.realpath(__file__))
 executable = {
-    'node_tracker': path.join(dir_path, '../bin', 'node_tracker'),
-    'storage_server': path.join(dir_path, '../bin', 'storage_server'),
+    'node_tracker': path.join(dir_path, '../bin', f'node_tracker_{platform}'),
+    'storage_server': path.join(dir_path, '../bin', f'storage_server_{platform}'),
 }
+
+plasma_store_server_exec = path.join(
+    dir_path, '../bin', f'plasma-store-server-{platform}')
+os.environ['PLASMA_STORE_SERVER_EXEC'] = plasma_store_server_exec
 
 
 def main():
@@ -28,9 +38,20 @@ def main():
         else:
             exec = executable[exec_name]
             cmd = [exec] + sys.argv[2:]
-            subprocess.run(cmd)
+            p = subprocess.Popen(cmd)
+
+            def handle_signal(sig, frame):
+                print('receive signal:', signal.Signals(sig).name)
+                p.send_signal(signal.SIGINT)
+                sys.exit()
+
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                signal.signal(sig, handle_signal)
+
+            p.wait()
+
     except Exception as e:
-        print('Exception:',e)
+        print('Exception:', e)
         show_help(root_cmd)
 
 

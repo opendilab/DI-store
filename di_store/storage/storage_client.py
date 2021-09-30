@@ -39,7 +39,7 @@ class StorageClient(object):
         self.plasma_client_get = trace(self.plasma_client.get)
 
         self.rng = np.random.default_rng()
-        
+
         # todo grpc with multiprocessing
         # self.server_rpc_channel = wrap_channel(
         #     grpc.insecure_channel(self.server_rpc_target))
@@ -62,35 +62,61 @@ class StorageClient(object):
             print(f'can not connect to storage server {self.hostname}')
             sys.exit(1)
 
-    def put(self, data, object_id=None):
+    @trace(span_name='span')
+    def put(self, data, object_id=None, prefetch_hostname=None, prefetch_group=None, span=None):
         if object_id is not None:
             check_object_id_hex(object_id)
             object_id = plasma.ObjectID(bytes.fromhex(object_id))
         else:
             object_id = plasma.ObjectID(self.rng.bytes(20))
+
+        if prefetch_hostname is None:
+            prefetch_hostname = []
+        elif not isinstance(prefetch_hostname, list):
+            prefetch_hostname = [prefetch_hostname]
+
+        if prefetch_group is None:
+            prefetch_group = []
+        elif not isinstance(prefetch_group, list):
+            prefetch_group = [prefetch_group]
+
         ref = self.plasma_client_put(data, object_id)
         object_id_hex = ref.binary().hex()
-        self.node_tracker_client.register_object(object_id_hex, self.hostname)
+
+        self.node_tracker_client.register_object(
+            object_id_hex, self.hostname, prefetch_hostname, prefetch_group)
+        if span:
+            span.log_kv({'data_size': len(data)})
         return object_id_hex
 
-    def fetch(self, object_id_hex):
+    def fetch(self, object_id_hex, src_node=None, via_rpc=False):
+        if src_node is None:
+            src_node = ""
         with grpc.insecure_channel(self.server_rpc_target) as channel:
+            channel = wrap_channel(channel)
             stub = storage_server_pb2_grpc.ObjectStoreStub(channel)
             stub.fetch(storage_server_pb2.FetchRequest(
-                object_id_hex=object_id_hex))
+                object_id_hex=object_id_hex, src_node=src_node, via_rpc=via_rpc))
 
-    def get(self, object_id_hex):
+    @trace(span_name='span')
+    def get(self, object_id_hex, src_node=None, via_rpc=False, *, span=None):
         check_object_id_hex(object_id_hex)
         object_id = plasma.ObjectID(bytes.fromhex(object_id_hex))
         data = self.plasma_client_get(object_id, 0)
         if data != plasma.ObjectNotAvailable:
+            if span:
+                span.log_kv({'data_size': len(data)})
             return data
 
-        self.fetch(object_id_hex)
+        self.fetch(object_id_hex, src_node, via_rpc)
         data = self.plasma_client_get(object_id, 0)
         if data == plasma.ObjectNotAvailable:
+            if span:
+                span.log_kv({'data_size': 0})
             return None
         else:
+            if span:
+                span.log_kv({'data_size': len(data)})
             return data
 
     def delete(self, object_id_hex_list):

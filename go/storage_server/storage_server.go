@@ -1,48 +1,52 @@
 package storage_server
 
 import (
+	"C"
 	"context"
 	"di_store/node_tracker"
+	pbNodeTracker "di_store/pb/node_tracker"
 	pbObjectStore "di_store/pb/storage_server"
 	"di_store/plasma_client"
 	plasma "di_store/plasma_server"
-	"di_store/tracing"
+	"di_store/util"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
 	"net"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
-
 	"google.golang.org/grpc"
 )
 
 type StorageServer struct {
 	pbObjectStore.UnimplementedObjectStoreServer
-	Hostname           string
-	PlasmaServerCtx    *context.Context
-	PlasmaClient       *plasma_client.PlasmaClientManager
-	NodeTrackerClient  *node_tracker.NodeTrackerClient
-	Listener           *net.Listener
-	ServerRpcTargetMap map[string]string
-	mu                 sync.Mutex
-	FetchRequestQ      chan *FetchTask
+	Hostname             string
+	PlasmaClient         *plasma_client.PlasmaClient
+	NodeTrackerRpcTarget string
+	// NodeTrackerClient   *node_tracker.NodeTrackerClient
+	RpcListener         net.Listener
+	ObjTransferListener net.Listener
+	ServerInfoMap       map[string]*pbNodeTracker.StorageServer
+	mu                  sync.Mutex
+	FetchTaskManager    *FetchTaskManager
+	GroupList           []string
 }
 
 func NewStorageServer(
 	ctx context.Context,
 	hostname string,
 	rpcPort int,
-	nodeTrackerHost string,
+	nodeTrackerIp string,
 	nodeTrackerPort int,
 	plasmaSocket string,
 	plasmaMemoryByte int,
-	plasmaClientNum int,
-	fetchWorkerNum int,
+	groupList []string,
 ) (*StorageServer, error) {
 	if hostname == "" {
 		var err error
@@ -52,100 +56,128 @@ func NewStorageServer(
 		}
 	}
 
-	plasmaServerCtx, err := plasma.RunPlasmaStoreServer(ctx, plasmaMemoryByte, plasmaSocket)
+	err := plasma.RunPlasmaStoreServer(ctx, plasmaMemoryByte, plasmaSocket)
 	if err != nil {
-		return nil, fmt.Errorf("failed to run plasma store server: %v", err)
+		return nil, errors.Wrapf(err, "failed to run plasma store server")
 	}
 	log.Info("running PlasmaStoreServer, path: ", plasmaSocket, " ,memory: ", plasmaMemoryByte)
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", rpcPort))
+	rpcLis, err := net.Listen("tcp", fmt.Sprintf(":%d", rpcPort))
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen: %v", err)
 	}
-	rpcPort = lis.Addr().(*net.TCPAddr).Port
+	rpcPort = rpcLis.Addr().(*net.TCPAddr).Port
 
-	plasmaClient, err := plasma_client.NewPlasmaClientManager(plasmaClientNum, plasmaSocket)
+	plasmaClient, err := plasma_client.NewClient(plasmaSocket)
+	if err != nil {
+		return nil, err
+	}
+	nodeTrackerRpcTarget := fmt.Sprintf("%s:%d", nodeTrackerIp, nodeTrackerPort)
+	nodeTrackerClient, err := node_tracker.NewNodeTrackerClient(context.Background(), nodeTrackerRpcTarget)
 	if err != nil {
 		return nil, err
 	}
 
-	nodeTrackerClient, err := node_tracker.NewNodeTrackerClient(fmt.Sprintf("%s:%d", nodeTrackerHost, nodeTrackerPort))
+	objTransferLis, err := net.Listen("tcp", ":0")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to listen: %v", err)
 	}
+	objTransferPort := objTransferLis.Addr().(*net.TCPAddr).Port
 
-	nodeTrackerClient.RegisterStorageServer(hostname, rpcPort, plasmaSocket)
+	_, err = nodeTrackerClient.RegisterStorageServer(hostname, rpcPort, plasmaSocket, objTransferPort, groupList)
+	if err != nil {
+		return nil, fmt.Errorf("failed to register storage server: %v", err)
+	}
 
 	server := &StorageServer{
-		Hostname:           hostname,
-		PlasmaServerCtx:    &plasmaServerCtx,
-		PlasmaClient:       plasmaClient,
-		NodeTrackerClient:  nodeTrackerClient,
-		Listener:           &lis,
-		ServerRpcTargetMap: make(map[string]string),
-		FetchRequestQ:      make(chan *FetchTask, fetchWorkerNum),
+		Hostname:             hostname,
+		PlasmaClient:         plasmaClient,
+		NodeTrackerRpcTarget: nodeTrackerRpcTarget,
+		RpcListener:          rpcLis,
+		ObjTransferListener:  objTransferLis,
+		ServerInfoMap:        make(map[string]*pbNodeTracker.StorageServer),
+		FetchTaskManager:     NewFetchTaskManager(),
+		GroupList:            groupList,
 	}
 
-	err = server.UpdateServerRpcTargetMap(context.Background())
+	err = server.UpdateServerInfoMap(context.Background())
 	if err != nil {
 		return nil, err
 	}
-
-	workerQ := make(chan *FetchTask, fetchWorkerNum)
-	workerResultQ := make(chan *FetchTask, fetchWorkerNum)
-	for i := 0; i < fetchWorkerNum; i++ {
-		go fetchWorker(i, workerQ, workerResultQ, server)
-	}
-
-	go fetchWorkerManager(server.FetchRequestQ, workerQ, workerResultQ, server.PlasmaClient)
-
 	return server, nil
 }
 
-func (server *StorageServer) UpdateServerRpcTargetMap(ctx context.Context) error {
+func (server *StorageServer) UpdateServerInfoMap(ctx context.Context) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "StorageServer.UpdateServerRpcTargetMap")
 	defer span.Finish()
 	server.mu.Lock()
 	defer server.mu.Unlock()
-	serverInfo, err := server.NodeTrackerClient.ServerInfo(ctx)
+
+	client, err := node_tracker.NewNodeTrackerClient(ctx, server.NodeTrackerRpcTarget)
 	if err != nil {
-		return fmt.Errorf("UpdateServerRpcTargetMap: %v", err)
+		return errors.Wrapf(err, "StorageServer.UpdateServerInfoMap")
 	}
+	serverInfo, err := client.ServerInfo(ctx)
+	if err != nil {
+		return errors.Wrapf(err, "StorageServer.UpdateServerInfoMap")
+	}
+	server.ServerInfoMap = map[string]*pbNodeTracker.StorageServer{}
 	for _, info := range serverInfo {
-		server.ServerRpcTargetMap[info.Hostname] = info.RpcTarget
+		server.ServerInfoMap[info.Hostname] = info
 	}
 	return nil
 }
 
-func (server *StorageServer) GetRpcTargetOfServer(ctx context.Context, hostname string) (string, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "StorageServer.GetRpcTargetOfServer")
+func (server *StorageServer) GetServerInfo(ctx context.Context, hostname string) (*pbNodeTracker.StorageServer, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "StorageServer.GetServerInfo")
 	defer span.Finish()
-	rpcTarget, exist := server.ServerRpcTargetMap[hostname]
+
+	info, exist := server.ServerInfoMap[hostname]
 	if !exist {
-		err := server.UpdateServerRpcTargetMap(ctx)
+		err := server.UpdateServerInfoMap(ctx)
 		if err != nil {
-			return "", err
+			return nil, err
 		}
-		rpcTarget, exist = server.ServerRpcTargetMap[hostname]
+		info, exist = server.ServerInfoMap[hostname]
 	}
 	if !exist {
-		return "", fmt.Errorf("can not find rpc target of serer %s", hostname)
+		return nil, errors.Errorf("StorageServer.GetServerInfo can not find server info of %s", hostname)
 	}
-	return rpcTarget, nil
+	return info, nil
+}
+
+func (server *StorageServer) UpdateStorageServer(ctx context.Context, in *pbObjectStore.UpdateStorageServerRequest) (*pbObjectStore.UpdateStorageServerResponse, error) {
+	server.mu.Lock()
+	defer server.mu.Unlock()
+
+	serverInfo := in.GetServerInfo()
+	if serverInfo == nil {
+		return nil, errors.Errorf("StorageServer.GetServerInfo can not find server info in request")
+	}
+	remove := in.GetRemove()
+	hostname := serverInfo.GetHostname()
+	if remove {
+		delete(server.ServerInfoMap, hostname)
+	} else {
+		server.ServerInfoMap[hostname] = serverInfo
+	}
+
+	return &pbObjectStore.UpdateStorageServerResponse{}, nil
 }
 
 func (server *StorageServer) Get(ctx context.Context, in *pbObjectStore.GetRequest) (*pbObjectStore.GetResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "StorageServer.Get")
+	defer span.Finish()
+
 	oidHex := in.GetObjectIdHex()
 	oid, err := hex.DecodeString(oidHex)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "decode object id: %v", string(oidHex))
 	}
-	dataList, err := server.PlasmaClient.Get(ctx, oid)
+	data, err := server.PlasmaClient.Get(ctx, oid)
 	if err != nil {
 		return nil, err
 	}
-	data := dataList[0]
-	// span := opentracing.SpanFromContext(ctx)
 
 	if data == nil {
 		// span.LogFields(ot_log.Int("object_size", -1))
@@ -178,153 +210,43 @@ func (server *StorageServer) Delete(ctx context.Context, in *pbObjectStore.Delet
 	if err != nil {
 		return nil, err
 	}
-	log.Trace("Delete: ", oidHexList)
 	return &pbObjectStore.DeleteResponse{}, nil
 }
 
-type FetchTask struct {
-	Oid     []byte
-	ResultQ chan error
-	Ctx     context.Context
-}
-
-func fetchDataFromRemote(ctx context.Context, rpcTarget string, oid []byte) ([]byte, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "fetchDataFromRemote")
-	defer span.Finish()
-	if log.IsLevelEnabled(log.TraceLevel) {
-		t := time.Now()
-		defer func() {
-			d := time.Since(t)
-			log.Trace(fmt.Sprintf("fetchDataFromRemote %s %s, duration: %s", rpcTarget, hex.EncodeToString(oid), d))
-		}()
-	}
-	var client pbObjectStore.ObjectStoreClient
-	{
-		span, _ := opentracing.StartSpanFromContext(ctx, "fetchDataFromRemote.NewObjectStoreClient")
-
-		conn, err := grpc.Dial(rpcTarget,
-			append(tracing.GrpcDialOption,
-				grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(1024*1024*1024)),
-				grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(time.Second*2))...,
-		)
-		if err != nil {
-			return nil, err
-		}
-		defer conn.Close()
-		client = pbObjectStore.NewObjectStoreClient(conn)
-		span.Finish()
-	}
-	resp, err := client.Get(ctx, &pbObjectStore.GetRequest{ObjectIdHex: hex.EncodeToString(oid)})
-	if err != nil {
-		return nil, err
-	}
-	if resp.GetNotFound() {
-		return nil, nil
-	} else {
-		return resp.GetData(), nil
-	}
-}
-
-func fetchWorker(workerID int, workerQ <-chan *FetchTask, workerResultQ chan<- *FetchTask, server *StorageServer) {
-	for task := range workerQ {
-		ctx := task.Ctx
-
-		if tracing.Enabled {
-			span := opentracing.SpanFromContext(ctx)
-			span.SetTag("worker_id", workerID)
-		}
-
-		objInfoList, err := server.NodeTrackerClient.ObjectInfo(ctx, hex.EncodeToString(task.Oid))
-
-		if err != nil {
-			task.ResultQ <- err
-			workerResultQ <- task
-			continue
-		}
-		objInfo := objInfoList[0]
-		serverList := objInfo.ServerHostnameList
-		rand.Shuffle(len(serverList), func(i, j int) {
-			serverList[i], serverList[j] = serverList[j], serverList[i]
-		})
-		err = nil
-		for _, s := range serverList {
-			var rpcTarget string
-			rpcTarget, err = server.GetRpcTargetOfServer(ctx, s)
-			if err != nil {
-				continue
-			}
-			var data []byte
-			data, err = fetchDataFromRemote(ctx, rpcTarget, task.Oid)
-			if err != nil {
-				continue
-			}
-			if data != nil {
-				_, err = server.PlasmaClient.Put(ctx, task.Oid, data)
-				if err != nil {
-					break
-				}
-				_, err = server.NodeTrackerClient.RegisterObject(ctx, hex.EncodeToString(task.Oid), server.Hostname)
-				break
-			}
-		}
-		task.ResultQ <- err
-		workerResultQ <- task
-	}
-}
-
-func fetchWorkerManager(requestQ <-chan *FetchTask, workerQ chan<- *FetchTask, workerResultQ <-chan *FetchTask, plasmaClient *plasma_client.PlasmaClientManager) {
-	requestMap := make(map[string][]chan<- error)
-	for {
-		select {
-		case task := <-workerResultQ:
-			result := <-task.ResultQ
-			key := string(task.Oid)
-			for _, q := range requestMap[key] {
-				q <- result
-			}
-			delete(requestMap, key)
-
-		case task := <-requestQ:
-			ctx := task.Ctx
-			oid := task.Oid
-			exist, err := plasmaClient.Contains(ctx, oid)
-			if err != nil {
-				task.ResultQ <- err
-				continue
-			}
-			if exist {
-				task.ResultQ <- nil
-				continue
-			}
-
-			key := string(oid)
-			l, exist := requestMap[key]
-
-			if tracing.Enabled {
-				span := opentracing.SpanFromContext(ctx)
-				span.SetTag("request_exist", exist)
-			}
-
-			if !exist {
-				workerQ <- &FetchTask{Oid: task.Oid, ResultQ: make(chan error, 1), Ctx: ctx}
-			} else {
-				log.Info(fmt.Sprintf("request exists: %s", hex.EncodeToString(task.Oid)))
-			}
-			requestMap[key] = append(l, task.ResultQ)
-		}
-	}
-
-}
-
 func (server *StorageServer) Fetch(ctx context.Context, in *pbObjectStore.FetchRequest) (*pbObjectStore.FetchResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "StorageServer.Fetch")
+	defer span.Finish()
+
 	oidHex := in.GetObjectIdHex()
+	viaRpc := in.GetViaRpc()
+	srcNode := in.GetSrcNode()
+	srcNodeOnly := in.GetSrcNodeOnly()
+
+	if srcNodeOnly && srcNode == "" {
+		return nil, errors.New("argument error: src_node_only == true && src_node == ''")
+	}
+
 	oid, err := hex.DecodeString(oidHex)
 	if err != nil {
 		return nil, err
 	}
-	task := &FetchTask{Oid: oid, ResultQ: make(chan error, 1), Ctx: ctx}
-	server.FetchRequestQ <- task
-	err = <-task.ResultQ
+
+	exist, err := server.PlasmaClient.Contains(ctx, oid)
+	if err != nil {
+		return nil, err
+	}
+
+	if exist {
+		log.Debugf("object already exists: %v", oidHex)
+		return &pbObjectStore.FetchResponse{}, nil
+	}
+
+	if viaRpc {
+		err = server.FetchTaskManager.Fetch(ctx, oid, srcNode, srcNodeOnly, server.fetchViaRpc)
+	} else {
+		err = server.FetchTaskManager.Fetch(ctx, oid, srcNode, srcNodeOnly, server.fetchViaSocket)
+	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -332,11 +254,28 @@ func (server *StorageServer) Fetch(ctx context.Context, in *pbObjectStore.FetchR
 }
 
 func (server *StorageServer) Serve() {
+	log.Info("start storage server, listening on port ", (server.RpcListener).Addr())
+	go server.objTransferListenLoop()
 
-	log.Info("start storage server, listening on port ", (*server.Listener).Addr())
-	grpcServer := grpc.NewServer(tracing.GrpcServerOption...)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigs
+		client, err := node_tracker.NewNodeTrackerClient(context.Background(), server.NodeTrackerRpcTarget)
+		if err != nil {
+			log.Error("failed to unregister storage server: %v", err)
+		}
+		_, err = client.UnregisterStorageServer(server.Hostname)
+		if err != nil {
+			log.Error("failed to unregister storage server: %v", err)
+		}
+		time.Sleep(time.Second)
+		os.Exit(0)
+	}()
+
+	grpcServer := grpc.NewServer(util.GrpcServerOption()...)
 	pbObjectStore.RegisterObjectStoreServer(grpcServer, server)
-	if err := grpcServer.Serve(*server.Listener); err != nil {
-		log.Fatalf("failed to create StorageServer: %v", err)
+	if err := grpcServer.Serve(server.RpcListener); err != nil {
+		log.Fatalf("failed to create StorageServer: %+v", err)
 	}
 }

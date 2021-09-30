@@ -7,17 +7,14 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	otgrpc "github.com/opentracing-contrib/go-grpc"
 	opentracing "github.com/opentracing/opentracing-go"
 	config "github.com/uber/jaeger-client-go/config"
-	"google.golang.org/grpc"
 )
 
 var (
-	Enabled          bool = false
-	GrpcServerOption []grpc.ServerOption
-	GrpcDialOption   []grpc.DialOption
-	gCloser          io.Closer
+	Enabled bool = false
+	Tracer  opentracing.Tracer
+	gCloser io.Closer
 )
 
 func init() {
@@ -52,16 +49,7 @@ func InitTracer(service string) (opentracing.Tracer, io.Closer) {
 	opentracing.SetGlobalTracer(tracer)
 
 	Enabled = true
-	GrpcServerOption = []grpc.ServerOption{
-		grpc.UnaryInterceptor(otgrpc.OpenTracingServerInterceptor(tracer)),
-		grpc.StreamInterceptor(otgrpc.OpenTracingStreamServerInterceptor(tracer)),
-	}
-	GrpcDialOption = []grpc.DialOption{
-		grpc.WithUnaryInterceptor(
-			otgrpc.OpenTracingClientInterceptor(tracer)),
-		grpc.WithStreamInterceptor(
-			otgrpc.OpenTracingStreamClientInterceptor(tracer)),
-	}
+	Tracer = tracer
 	gCloser = closer
 
 	return tracer, closer

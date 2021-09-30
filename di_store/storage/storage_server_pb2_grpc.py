@@ -14,6 +14,11 @@ class ObjectStoreStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.update_storage_server = channel.unary_unary(
+                '/di_store.storage_server.ObjectStore/update_storage_server',
+                request_serializer=storage__server__pb2.UpdateStorageServerRequest.SerializeToString,
+                response_deserializer=storage__server__pb2.UpdateStorageServerResponse.FromString,
+                )
         self.fetch = channel.unary_unary(
                 '/di_store.storage_server.ObjectStore/fetch',
                 request_serializer=storage__server__pb2.FetchRequest.SerializeToString,
@@ -33,6 +38,12 @@ class ObjectStoreStub(object):
 
 class ObjectStoreServicer(object):
     """Missing associated documentation comment in .proto file."""
+
+    def update_storage_server(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def fetch(self, request, context):
         """Missing associated documentation comment in .proto file."""
@@ -55,6 +66,11 @@ class ObjectStoreServicer(object):
 
 def add_ObjectStoreServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'update_storage_server': grpc.unary_unary_rpc_method_handler(
+                    servicer.update_storage_server,
+                    request_deserializer=storage__server__pb2.UpdateStorageServerRequest.FromString,
+                    response_serializer=storage__server__pb2.UpdateStorageServerResponse.SerializeToString,
+            ),
             'fetch': grpc.unary_unary_rpc_method_handler(
                     servicer.fetch,
                     request_deserializer=storage__server__pb2.FetchRequest.FromString,
@@ -79,6 +95,23 @@ def add_ObjectStoreServicer_to_server(servicer, server):
  # This class is part of an EXPERIMENTAL API.
 class ObjectStore(object):
     """Missing associated documentation comment in .proto file."""
+
+    @staticmethod
+    def update_storage_server(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/di_store.storage_server.ObjectStore/update_storage_server',
+            storage__server__pb2.UpdateStorageServerRequest.SerializeToString,
+            storage__server__pb2.UpdateStorageServerResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
     @staticmethod
     def fetch(request,

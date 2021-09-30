@@ -4,16 +4,15 @@ from . import node_tracker_pb2
 from . import node_tracker_pb2_grpc
 from ..tracing import trace, wrap_channel
 
+# todo grpc with multiprocessing
+# https://github.com/grpc/grpc/issues/18321
+
 
 @trace
 class NodeTrackerClient:
     def __init__(self, node_tracker_host='127.0.0.1', node_tracker_port=50050):
         self.node_tracker_rpc_target = f'{node_tracker_host}:{node_tracker_port}'
-        # todo grpc with multiprocessing
-        # https://github.com/grpc/grpc/issues/18321
-        # self.channel = grpc.insecure_channel(self.node_tracker_rpc_target)
-        # self.channel = wrap_channel(self.channel)
-        # self.stub = node_tracker_pb2_grpc.NodeTrackerStub(self.channel)
+
         self.closed = False
 
     def close(self):
@@ -40,20 +39,22 @@ class NodeTrackerClient:
     def register_storage_client(self, server_hostname):
         assert server_hostname is not None
         with grpc.insecure_channel(self.node_tracker_rpc_target) as channel:
-            stub = node_tracker_pb2_grpc.NodeTrackerStub(channel)
+            stub = node_tracker_pb2_grpc.NodeTrackerStub(wrap_channel(channel))
             response = stub.register_storage_client(
                 node_tracker_pb2.StorageClient(
                     server_hostname=server_hostname
                 ))
             return response
 
-    def register_object(self, object_id_hex, server_hostname):
+    def register_object(self, object_id_hex, server_hostname, push_hostname_list, push_group_list):
         with grpc.insecure_channel(self.node_tracker_rpc_target) as channel:
-            stub = node_tracker_pb2_grpc.NodeTrackerStub(channel)
+            stub = node_tracker_pb2_grpc.NodeTrackerStub(wrap_channel(channel))
             response = stub.register_object(
                 node_tracker_pb2.RegisterObjectRequest(
                     object_id_hex=object_id_hex,
-                    server_hostname=server_hostname
+                    server_hostname=server_hostname,
+                    push_hostname_list=push_hostname_list,
+                    push_group_list=push_group_list
                 ))
             return response
 
@@ -65,7 +66,7 @@ class NodeTrackerClient:
             else:
                 request.server_hostname_list.append(server_hostname_list)
         with grpc.insecure_channel(self.node_tracker_rpc_target) as channel:
-            stub = node_tracker_pb2_grpc.NodeTrackerStub(channel)
+            stub = node_tracker_pb2_grpc.NodeTrackerStub(wrap_channel(channel))
             response = stub.server_info(request)
             return response.storage_server_list
 
@@ -77,7 +78,7 @@ class NodeTrackerClient:
             request.object_id_hex_list.append(object_id_hex_list)
 
         with grpc.insecure_channel(self.node_tracker_rpc_target) as channel:
-            stub = node_tracker_pb2_grpc.NodeTrackerStub(channel)
+            stub = node_tracker_pb2_grpc.NodeTrackerStub(wrap_channel(channel))
             response = stub.object_info(request)
             return response.object_info_list
 
@@ -89,5 +90,5 @@ class NodeTrackerClient:
             request.object_id_hex_list.append(object_id_hex_list)
 
         with grpc.insecure_channel(self.node_tracker_rpc_target) as channel:
-            stub = node_tracker_pb2_grpc.NodeTrackerStub(channel)
+            stub = node_tracker_pb2_grpc.NodeTrackerStub(wrap_channel(channel))
             return stub.object_delete(request)

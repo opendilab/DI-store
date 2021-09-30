@@ -79,7 +79,7 @@ func main() {
 		log.Fatal(fmt.Errorf("parse url error: %v", err))
 	}
 
-	nodeTracker, err := node_tracker.NewNodeTracker(u.Hostname(), port, trackerInfo.RpcPort)
+	nodeTracker, err := node_tracker.NewNodeTracker(u.Hostname(), port, trackerInfo.RpcHost, trackerInfo.RpcPort)
 	if err != nil {
 		log.Fatalf("failed to create NodeTracker: %v", err)
 	}
