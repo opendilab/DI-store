@@ -15,6 +15,13 @@ extern "C"
         int64_t size;
     } Data;
 
+    typedef struct
+    {
+        const unsigned char *data;
+        int64_t size;
+        void *inner;
+    } Buff;
+
     ClientPointer NewClient();
 
     void DeleteClient(ClientPointer client);
@@ -23,22 +30,36 @@ extern "C"
 
     const char *Disconnect(ClientPointer client);
 
-    const char *CreateAndSeal(ClientPointer client, const char *object_id, const char *data,
-                              int len, bool evict_if_full, int memcopy_threads,
-                              int64_t memcopy_threshold, int64_t memcopy_blocksize);
+    const char *Create(ClientPointer client, const char *object_id, int len, Buff **ppbuff);
 
-    const char *Get(ClientPointer client, char **object_ids, int64_t num_objects,
-                    int64_t timeout_ms, ObjectBufferPointer *object_buffer);
+    void Abort(ClientPointer client, const char *object_id);
 
-    Data GetData(ObjectBufferPointer object_buffers, unsigned int index);
+    const char *Seal(ClientPointer client, const char *object_id);
 
-    unsigned int DataSize(ObjectBufferPointer object_buffers);
+    const char *Get(ClientPointer client, char *object_id, int64_t timeout_ms, Buff **ppbuff);
 
-    void DeleteObjectBufferPointer(ObjectBufferPointer object_buffers);
+    void DeleteBuff(Buff *pbuff);
+
+    // const char *CreateAndSeal(ClientPointer client, const char *object_id, const char *data,
+    //                           int len, bool evict_if_full, int memcopy_threads,
+    //                           int64_t memcopy_threshold, int64_t memcopy_blocksize);
+
+    // const char *Get(ClientPointer client, char **object_ids, int64_t num_objects,
+    //                 int64_t timeout_ms, ObjectBufferPointer *object_buffer);
+
+    // Data GetData(ObjectBufferPointer object_buffers, unsigned int index);
+
+    // unsigned int DataSize(ObjectBufferPointer object_buffers);
+
+    // void DeleteObjectBufferPointer(ObjectBufferPointer object_buffers);
 
     const char *Delete(ClientPointer client, char **object_ids, int64_t num_objects);
 
     const char *Contains(ClientPointer client, char *object_id, char *has_object);
+
+    void ParallelMemCopy(void *dst, void *src, int64_t nbytes, uintptr_t block_size, int num_threads);
+
+    void ParallelMemCopy2(void *dst, void *src, int64_t nbytes, uintptr_t block_size, int num_threads);
 
 #ifdef __cplusplus
 }

@@ -42,10 +42,8 @@ def main(args):
     listen_peer_urls = ','.join(server_info['listen_peer_urls'])
     unsafe_no_fsync = True
 
-    etcd_exe = 'etcd-darwin' if platform.system().lower() == 'darwin' else 'etcd'
-
     bin_path = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '..', 'bin', etcd_exe))
+        os.path.dirname(__file__), '..', 'bin', f'etcd-{platform.system().lower()}'))
     cmd = [bin_path]
 
     if unsafe_no_fsync:

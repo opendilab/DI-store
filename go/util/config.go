@@ -3,9 +3,17 @@ package util
 import (
 	"fmt"
 	"io/ioutil"
+	"time"
 
-	yaml "gopkg.in/yaml.v2"
+	"github.com/creasty/defaults"
+	yaml "gopkg.in/yaml.v3"
 )
+
+var (
+	CommonConfig *Common
+)
+
+// Struct for parsing config files
 
 type NodeTracker struct {
 	Hostname string `yaml:"hostname"`
@@ -28,8 +36,20 @@ type StorageClient struct {
 	Hostname      string `yaml:"hostname"`
 	StorageServer string `yaml:"storage_server"`
 }
+
+type Common struct {
+	DialTimeout            time.Duration `yaml:"dial_timeout"          default:"10s"`
+	RequestTimeout         time.Duration `yaml:"request_timeout"       default:"60s"`
+	FetchTaskRetryMax      int           `yaml:"fetch_task_retry_max"  default:"5"`
+	FetchFanout            int           `yaml:"fetch_fanout"          default:"3" `
+	BackgroundTaskLimit    int           `yaml:"background_task_limit" default:"20"`
+	TaskQueueCap           int           `yaml:"task_queue_cap"        default:"40"`
+	GrpcMaxCallRecvMsgSize int           `yaml:"grpc_max_call_recv_msg_size" default:"1073741824"`
+}
+
 type Config struct {
 	configFilePath string
+	Common         Common          `yaml:"common"`
 	EtcdServers    []EtcdServer    `yaml:"etcd_servers"`
 	NodeTrackers   []NodeTracker   `yaml:"node_trackers"`
 	StorageServers []StorageServer `yaml:"storage_servers"`
@@ -42,11 +62,13 @@ func ReadConfig(path string) (*Config, error) {
 		return nil, err
 	}
 	conf := &Config{}
+	defaults.Set(&conf.Common)
 	err = yaml.Unmarshal(buf, conf)
 	if err != nil {
 		return nil, err
 	}
 	conf.configFilePath = path
+	CommonConfig = &conf.Common
 	return conf, nil
 }
 

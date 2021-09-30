@@ -1,17 +1,18 @@
 package plasma_client
 
-// #cgo LDFLAGS: -L${SRCDIR}/libs -lplasma-cwrap -lplasma -larrow -ljemalloc -lstdc++
-
 /*
-#cgo LDFLAGS: -L${SRCDIR} -lplasma-c -lstdc++
+#cgo linux LDFLAGS: -L${SRCDIR} -lplasma-c -lstdc++ -pthread
+#cgo darwin LDFLAGS: -L${SRCDIR}/lib_darwin -lplasma -larrow -lplasma-cwrap -ljemalloc -lstdc++
 #include <stdbool.h>
 #include "cclient.h"
 #include <stdlib.h>
+#include <string.h>
 */
 import "C"
 import (
 	"context"
-	"fmt"
+	"di_store/util"
+	"encoding/hex"
 	"math/rand"
 	"runtime"
 	"sync"
@@ -19,6 +20,7 @@ import (
 	"unsafe"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -27,7 +29,56 @@ const (
 
 var once sync.Once
 
+type Buff struct {
+	inner  *C.Buff
+	client *PlasmaClient
+}
+
+func NewBuff(buf *C.Buff, client *PlasmaClient) *Buff {
+	return &Buff{buf, client}
+}
+
+func (buff *Buff) Data() unsafe.Pointer {
+	if buff == nil {
+		return nil
+	}
+	return unsafe.Pointer(buff.inner.data)
+}
+
+func (buff *Buff) Size() int {
+	if buff == nil {
+		return 0
+	}
+	return int(buff.inner.size)
+}
+
+func (buff *Buff) IsEmpty() bool {
+	if buff == nil {
+		return true
+	}
+	return unsafe.Pointer(buff.inner.data) == C.NULL
+}
+
+func (buff *Buff) Release(ctx context.Context) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "Buff.Release")
+	defer span.Finish()
+
+	if buff == nil {
+		return
+	}
+
+	buff.client.mu.Lock()
+	defer buff.client.mu.Unlock()
+
+	C.DeleteBuff(buff.inner)
+}
+
+func (buff *Buff) ToByteSlice() []byte {
+	return util.BytesWithoutCopy(buff.Data(), buff.Size())
+}
+
 type PlasmaClient struct {
+	mu      sync.Mutex
 	cclient C.ClientPointer
 }
 
@@ -37,13 +88,17 @@ func clientFinalizer(c *PlasmaClient) {
 	}
 }
 
-func NewClient() *PlasmaClient {
+func NewClient(path string) (*PlasmaClient, error) {
 	once.Do(func() {
 		rand.Seed(time.Now().UnixNano())
 	})
 	c := &PlasmaClient{}
 	runtime.SetFinalizer(c, clientFinalizer)
-	return c
+	err := c.Connect(path)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
 }
 
 func msgToError(cmsg *C.char) error {
@@ -51,13 +106,15 @@ func msgToError(cmsg *C.char) error {
 	if msg == "" {
 		return nil
 	} else {
-		return fmt.Errorf(msg)
+		return errors.Errorf(msg)
 	}
 }
 
 func (c *PlasmaClient) Connect(path string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.cclient != nil {
-		return fmt.Errorf("client has connected to the server")
+		return errors.Errorf("client has connected to the server")
 	}
 	c.cclient = C.NewClient()
 	cpath := C.CString(path)
@@ -67,8 +124,10 @@ func (c *PlasmaClient) Connect(path string) error {
 }
 
 func (c *PlasmaClient) Disconnect() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.cclient == nil {
-		return fmt.Errorf("client has already been disconnected")
+		return errors.Errorf("client has already been disconnected")
 	}
 	msg := C.Disconnect(c.cclient)
 	C.DeleteClient(c.cclient)
@@ -82,37 +141,90 @@ var (
 	memcopy_blocksize int64 = 0
 )
 
-func (c *PlasmaClient) Put(ctx context.Context, oid []byte, data []byte) ([]byte, error) {
+func (c *PlasmaClient) Create(ctx context.Context, oid []byte, length int) (*Buff, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PlasmaClient.Create")
+	defer span.Finish()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if len(oid) != OBJECT_ID_LENGTH {
+		panic(errors.Errorf("object id length error: %v", oid))
+	}
+	poid := unsafe.Pointer(&oid[0])
+
+	var pbuff *C.Buff
+	msg := C.Create(c.cclient, (*C.char)(poid), C.int(length), &pbuff)
+	err := msgToError(msg)
+	if err != nil {
+		return nil, errors.Wrapf(err, "PlasmaClient.Create: %v", hex.EncodeToString(oid))
+	}
+	return NewBuff(pbuff, c), nil
+}
+
+func (c *PlasmaClient) Abort(ctx context.Context, oid []byte) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PlasmaClient.Abort")
+	defer span.Finish()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if len(oid) != OBJECT_ID_LENGTH {
+		panic(errors.Errorf("object id length error: %v", string(oid)))
+	}
+	poid := unsafe.Pointer(&oid[0])
+	C.Abort(c.cclient, (*C.char)(poid))
+}
+
+func (c *PlasmaClient) Seal(ctx context.Context, oid []byte) error {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PlasmaClient.Seal")
+	defer span.Finish()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if len(oid) != OBJECT_ID_LENGTH {
+		panic(errors.Errorf("object id length error: %v", string(oid)))
+	}
+	poid := unsafe.Pointer(&oid[0])
+
+	msg := C.Seal(c.cclient, (*C.char)(poid))
+	err := msgToError(msg)
+	return err
+}
+
+func (c *PlasmaClient) Put(ctx context.Context, oid []byte, data []byte) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PlasmaClient.Put")
 	defer span.Finish()
-
-	evict_if_full := false
 
 	if len(oid) == 0 {
 		oid = make([]byte, OBJECT_ID_LENGTH)
 		rand.Read(oid)
 	} else if len(oid) != OBJECT_ID_LENGTH {
-		return nil, fmt.Errorf("object id length error: %v", oid)
+		return errors.Errorf("object id length error: %v", string(oid))
 	}
-	poid := unsafe.Pointer(&oid[0])
-	pdata := unsafe.Pointer(&data[0])
 
-	msg := C.CreateAndSeal(c.cclient, (*C.char)(poid), (*C.char)(pdata), C.int(len(data)),
-		C.bool(evict_if_full), C.int(memcopy_threads), C.long(memcopy_threshold), C.long(memcopy_blocksize))
-	err := msgToError(msg)
+	buff, err := c.Create(ctx, oid, len(data))
+	defer buff.Release(ctx)
 	if err != nil {
-		return nil, err
-	} else {
-		return oid, nil
+		return err
 	}
+
+	{
+		span, _ := opentracing.StartSpanFromContext(ctx, "PlasmaClient.ParallelMemCopy")
+		pdata := unsafe.Pointer(&data[0])
+		C.ParallelMemCopy2(buff.Data(), pdata, CInt64(buff.Size()), 1024*4, 8)
+		span.Finish()
+	}
+
+	return c.Seal(ctx, oid)
 }
 
 func (c *PlasmaClient) Contains(ctx context.Context, oid []byte) (bool, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PlasmaClient.Contains")
 	defer span.Finish()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	if len(oid) != OBJECT_ID_LENGTH {
-		return false, fmt.Errorf("object id length error: %v", oid)
+		return false, errors.Errorf("object id length error: %v", string(oid))
 	}
 	var hasObject C.char
 	poid := unsafe.Pointer(&oid[0])
@@ -125,43 +237,53 @@ func (c *PlasmaClient) Contains(ctx context.Context, oid []byte) (bool, error) {
 	}
 }
 
-func (c *PlasmaClient) Get(ctx context.Context, oids ...[]byte) ([][]byte, error) {
+func (c *PlasmaClient) GetBuff(ctx context.Context, oid []byte) (*Buff, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "PlasmaClient.GetBuff")
+	defer span.Finish()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var pbuff *C.Buff
+	msg := C.Get(c.cclient, (*C.char)(unsafe.Pointer(&oid[0])), CInt64(0), &pbuff)
+	err := msgToError(msg)
+	return NewBuff(pbuff, c), err
+}
+
+func (c *PlasmaClient) Get(ctx context.Context, oid []byte) ([]byte, error) {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PlasmaClient.Get")
 	defer span.Finish()
 
-	objectIDs := make([]*C.char, len(oids))
-	for i, oid := range oids {
-		if len(oid) != OBJECT_ID_LENGTH {
-			return nil, fmt.Errorf("object id length error: %v", oid)
-		}
-		poid := C.CBytes(oid)
-		defer C.free(poid)
-		objectIDs[i] = (*C.char)(poid)
+	if len(oid) != OBJECT_ID_LENGTH {
+		return nil, errors.Errorf("object id length error: %v", string(oid))
 	}
-	pObjectIDs := (**C.char)(&objectIDs[0])
-	var buff C.ObjectBufferPointer
-	pBuff := (*C.ObjectBufferPointer)(&buff)
-	msg := C.Get(c.cclient, pObjectIDs, C.long(len(oids)), C.long(0), pBuff)
-	defer C.DeleteObjectBufferPointer(buff)
-	err := msgToError(msg)
+
+	buff, err := c.GetBuff(ctx, oid)
+	defer buff.Release(ctx)
 	if err != nil {
 		return nil, err
 	}
-	data := make([][]byte, len(oids))
-	for i := 0; i < len(oids); i++ {
-		item := C.GetData(buff, C.uint(i))
-		pData := unsafe.Pointer(item.data)
-		if pData != C.NULL {
-			data[i] = C.GoBytes(pData, C.int(item.size))
-		} else {
-			data[i] = nil
-		}
+
+	if !buff.IsEmpty() {
+
+		span1, _ := opentracing.StartSpanFromContext(ctx, "PlasmaClient.makebyte")
+		data := make([]byte, buff.Size(), buff.Size())
+		span1.Finish()
+
+		span2, _ := opentracing.StartSpanFromContext(ctx, "PlasmaClient.ParallelMemCopy")
+		C.ParallelMemCopy2(unsafe.Pointer(&data[0]), buff.Data(), CInt64(buff.Size()), 1024*4, 8)
+		span2.Finish()
+
+		return data, nil
+	} else {
+		return nil, nil
 	}
-	return data, nil
 }
+
 func (c *PlasmaClient) Delete(ctx context.Context, oids ...[]byte) error {
 	span, ctx := opentracing.StartSpanFromContext(ctx, "PlasmaClient.Delete")
 	defer span.Finish()
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
 	if len(oids) == 0 {
 		return nil
@@ -169,158 +291,13 @@ func (c *PlasmaClient) Delete(ctx context.Context, oids ...[]byte) error {
 	objectIDs := make([]*C.char, len(oids))
 	for i, oid := range oids {
 		if len(oid) != OBJECT_ID_LENGTH {
-			return fmt.Errorf("object id length error: %v", oid)
+			return errors.Errorf("object id length error: %v", string(oid))
 		}
 		poid := C.CBytes(oid)
 		defer C.free(poid)
 		objectIDs[i] = (*C.char)(poid)
 	}
 	pObjectIDs := (**C.char)(&objectIDs[0])
-	msg := C.Delete(c.cclient, pObjectIDs, C.long(len(oids)))
+	msg := C.Delete(c.cclient, pObjectIDs, CInt64(len(oids)))
 	return msgToError(msg)
-}
-
-type OpType int
-
-const (
-	OpPut OpType = iota
-	OpGet
-	OpDelete
-	OpContains
-)
-
-type Task struct {
-	Type    OpType
-	Args    []interface{}
-	ResultQ chan *OpResult
-	Ctx     context.Context
-}
-
-type OpResult struct {
-	Result interface{}
-	Err    error
-}
-
-type PlasmaClientManager struct {
-	TaskQ   chan *Task
-	Clients []*PlasmaClient
-}
-
-func PlasmaClientWorker(taskQ <-chan *Task, client *PlasmaClient, id int) {
-	for task := range taskQ {
-		ctx := task.Ctx
-		switch task.Type {
-		case OpPut:
-			oid := task.Args[0].([]byte)
-			data := task.Args[1].([]byte)
-			result, err := client.Put(ctx, oid, data)
-			task.ResultQ <- &OpResult{Result: result, Err: err}
-		case OpGet:
-			oids := task.Args[0].([][]byte)
-			result, err := client.Get(ctx, oids...)
-			task.ResultQ <- &OpResult{Result: result, Err: err}
-		case OpDelete:
-			oids := task.Args[0].([][]byte)
-			err := client.Delete(ctx, oids...)
-			task.ResultQ <- &OpResult{Result: nil, Err: err}
-		case OpContains:
-			oid := task.Args[0].([]byte)
-			hasObj, err := client.Contains(ctx, oid)
-			task.ResultQ <- &OpResult{Result: hasObj, Err: err}
-		}
-	}
-}
-
-func NewPlasmaClientManager(n int, socketPath string) (*PlasmaClientManager, error) {
-	clients := make([]*PlasmaClient, n)
-	for i := range clients {
-		client := NewClient()
-		err := client.Connect(socketPath)
-		if err != nil {
-			return nil, err
-		}
-		clients[i] = client
-	}
-	taskQ := make(chan *Task, n)
-
-	for i, client := range clients {
-		go PlasmaClientWorker(taskQ, client, i)
-	}
-	return &PlasmaClientManager{TaskQ: taskQ, Clients: clients}, nil
-}
-
-func (m *PlasmaClientManager) Put(ctx context.Context, oid []byte, data []byte) ([]byte, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PlasmaClientManager.Put")
-	defer span.Finish()
-
-	resultQ := make(chan *OpResult, 1)
-	task := &Task{
-		Type:    OpPut,
-		Args:    []interface{}{oid, data},
-		ResultQ: resultQ,
-		Ctx:     ctx,
-	}
-	m.TaskQ <- task
-	result := <-resultQ
-	if result.Err != nil {
-		return nil, result.Err
-	} else {
-		return result.Result.([]byte), nil
-	}
-}
-
-func (m *PlasmaClientManager) Contains(ctx context.Context, oid []byte) (bool, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PlasmaClientManager.Contains")
-	defer span.Finish()
-
-	resultQ := make(chan *OpResult, 1)
-	task := &Task{
-		Type:    OpContains,
-		Args:    []interface{}{oid},
-		ResultQ: resultQ,
-		Ctx:     ctx,
-	}
-	m.TaskQ <- task
-	result := <-resultQ
-	if result.Err != nil {
-		return false, result.Err
-	} else {
-		return result.Result.(bool), nil
-	}
-}
-
-func (m *PlasmaClientManager) Get(ctx context.Context, oids ...[]byte) ([][]byte, error) {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PlasmaClientManager.Get")
-	span.Finish()
-
-	resultQ := make(chan *OpResult, 1)
-	task := &Task{
-		Type:    OpGet,
-		Args:    []interface{}{oids},
-		ResultQ: resultQ,
-		Ctx:     ctx,
-	}
-	m.TaskQ <- task
-	result := <-resultQ
-	if result.Err != nil {
-		return nil, result.Err
-	} else {
-		return result.Result.([][]byte), nil
-	}
-}
-
-func (m *PlasmaClientManager) Delete(ctx context.Context, oids ...[]byte) error {
-	span, ctx := opentracing.StartSpanFromContext(ctx, "PlasmaClientManager.Delete")
-	defer span.Finish()
-
-	resultQ := make(chan *OpResult, 1)
-	task := &Task{
-		Type:    OpDelete,
-		Args:    []interface{}{oids},
-		ResultQ: resultQ,
-		Ctx:     ctx,
-	}
-	m.TaskQ <- task
-	result := <-resultQ
-	return result.Err
 }

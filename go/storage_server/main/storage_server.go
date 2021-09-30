@@ -6,6 +6,7 @@ import (
 	"di_store/tracing"
 	"di_store/util"
 	"os"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
@@ -16,6 +17,7 @@ var (
 	logLevel        *string
 	hostname        = kingpin.Flag("hostname", "hostname of StorageServer").Default("").String()
 	confPath        = kingpin.Arg("conf_path", "configure file path for StorageServer").Required().File()
+	groupList       = kingpin.Flag("group", "group of StorageServer").Default("").Strings()
 )
 
 func initLogLevel() {
@@ -63,20 +65,28 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Info("StorageServer config: ", serverInfo)
+	log.Infof("StorageServer (%v) config: %+v: ", *hostname, serverInfo)
 
 	if len(conf.NodeTrackers) == 0 {
 		log.Fatal("can not find any node tracker from config file")
 	}
 	trackerInfo := conf.NodeTrackers[0]
 
+	var flattenedGroupList []string
+	for _, group := range *groupList {
+		if group == "" {
+			continue
+		}
+		flattenedGroupList = append(flattenedGroupList, strings.Split(group, ",")...)
+	}
 	// todo context
 	server, err := storage_server.NewStorageServer(
 		context.Background(), *hostname, serverInfo.RpcPort,
-		trackerInfo.Hostname, trackerInfo.RpcPort, serverInfo.PlasmaSocket,
-		serverInfo.PlasmaMemoryByte, 8, 8)
+		trackerInfo.RpcHost, trackerInfo.RpcPort, serverInfo.PlasmaSocket,
+		serverInfo.PlasmaMemoryByte,
+		flattenedGroupList)
 	if err != nil {
-		log.Fatalf("failed to create StorageServer: %v", err)
+		log.Fatalf("failed to create StorageServer: %+v", err)
 	}
 	server.Serve()
 }

@@ -15,10 +15,10 @@ def init_tracer(service):
     config = Config(
         config={  # usually read from some yaml config
             'sampler': {
-                # 'type': 'const',
-                # 'param': 1,
-                'type': 'probabilistic',
-                'param': 0.005,
+                'type': 'const',
+                'param': 1,
+                # 'type': 'probabilistic',
+                # 'param': 0.005,
 
             },
             'reporter_batch_size': 100,

@@ -17,9 +17,9 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='node_tracker.proto',
   package='di_store.node_tracker',
   syntax='proto3',
-  serialized_options=b'Z\017pb/node_tracker',
+  serialized_options=b'Z\030di_store/pb/node_tracker',
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x12node_tracker.proto\x12\x15\x64i_store.node_tracker\"1\n\x13ObjectDeleteRequest\x12\x1a\n\x12object_id_hex_list\x18\x01 \x03(\t\"\x16\n\x14ObjectDeleteResponse\"/\n\x11ObjectInfoRequest\x12\x1a\n\x12object_id_hex_list\x18\x01 \x03(\t\"Q\n\x12ObjectInfoResponse\x12;\n\x10object_info_list\x18\x01 \x03(\x0b\x32!.di_store.node_tracker.ObjectInfo\"A\n\nObjectInfo\x12\x15\n\robject_id_hex\x18\x01 \x01(\t\x12\x1c\n\x14server_hostname_list\x18\x02 \x03(\t\"1\n\x11ServerInfoRequest\x12\x1c\n\x14server_hostname_list\x18\x01 \x03(\t\"W\n\x12ServerInfoResponse\x12\x41\n\x13storage_server_list\x18\x01 \x03(\x0b\x32$.di_store.node_tracker.StorageServer\"G\n\x15RegisterObjectRequest\x12\x15\n\robject_id_hex\x18\x01 \x01(\t\x12\x17\n\x0fserver_hostname\x18\x02 \x01(\t\"\x18\n\x16RegisterObjectResponse\"o\n\rStorageServer\x12\x10\n\x08hostname\x18\x01 \x01(\t\x12\x0f\n\x07ip_addr\x18\x02 \x01(\t\x12\x10\n\x08rpc_port\x18\x03 \x01(\x05\x12\x15\n\rplasma_socket\x18\x04 \x01(\t\x12\x12\n\nrpc_target\x18\x05 \x01(\t\"w\n\x1dRegisterStorageServerResponse\x12\x36\n\x0b\x65tcd_server\x18\x01 \x01(\x0b\x32!.di_store.node_tracker.EtcdServer\x12\x1e\n\x16storage_server_ip_addr\x18\x02 \x01(\t\"(\n\rStorageClient\x12\x17\n\x0fserver_hostname\x18\x01 \x01(\t\"\x95\x01\n\x1dRegisterStorageClientResponse\x12\x36\n\x0b\x65tcd_server\x18\x01 \x01(\x0b\x32!.di_store.node_tracker.EtcdServer\x12<\n\x0estorage_server\x18\x02 \x01(\x0b\x32$.di_store.node_tracker.StorageServer\"+\n\nEtcdServer\x12\x0f\n\x07ip_addr\x18\x01 \x01(\t\x12\x0c\n\x04port\x18\x02 \x01(\x05\x32\xa9\x05\n\x0bNodeTracker\x12w\n\x17register_storage_server\x12$.di_store.node_tracker.StorageServer\x1a\x34.di_store.node_tracker.RegisterStorageServerResponse\"\x00\x12w\n\x17register_storage_client\x12$.di_store.node_tracker.StorageClient\x1a\x34.di_store.node_tracker.RegisterStorageClientResponse\"\x00\x12p\n\x0fregister_object\x12,.di_store.node_tracker.RegisterObjectRequest\x1a-.di_store.node_tracker.RegisterObjectResponse\"\x00\x12\x64\n\x0bserver_info\x12(.di_store.node_tracker.ServerInfoRequest\x1a).di_store.node_tracker.ServerInfoResponse\"\x00\x12\x64\n\x0bobject_info\x12(.di_store.node_tracker.ObjectInfoRequest\x1a).di_store.node_tracker.ObjectInfoResponse\"\x00\x12j\n\robject_delete\x12*.di_store.node_tracker.ObjectDeleteRequest\x1a+.di_store.node_tracker.ObjectDeleteResponse\"\x00\x42\x11Z\x0fpb/node_trackerb\x06proto3'
+  serialized_pb=b'\n\x12node_tracker.proto\x12\x15\x64i_store.node_tracker\"1\n\x13ObjectDeleteRequest\x12\x1a\n\x12object_id_hex_list\x18\x01 \x03(\t\"\x16\n\x14ObjectDeleteResponse\"/\n\x11ObjectInfoRequest\x12\x1a\n\x12object_id_hex_list\x18\x01 \x03(\t\"Q\n\x12ObjectInfoResponse\x12;\n\x10object_info_list\x18\x01 \x03(\x0b\x32!.di_store.node_tracker.ObjectInfo\"A\n\nObjectInfo\x12\x15\n\robject_id_hex\x18\x01 \x01(\t\x12\x1c\n\x14server_hostname_list\x18\x02 \x03(\t\"1\n\x11ServerInfoRequest\x12\x1c\n\x14server_hostname_list\x18\x01 \x03(\t\"W\n\x12ServerInfoResponse\x12\x41\n\x13storage_server_list\x18\x01 \x03(\x0b\x32$.di_store.node_tracker.StorageServer\"|\n\x15RegisterObjectRequest\x12\x15\n\robject_id_hex\x18\x01 \x01(\t\x12\x17\n\x0fserver_hostname\x18\x02 \x01(\t\x12\x1a\n\x12push_hostname_list\x18\x03 \x03(\t\x12\x17\n\x0fpush_group_list\x18\x04 \x03(\t\"\x18\n\x16RegisterObjectResponse\"\xbb\x01\n\rStorageServer\x12\x10\n\x08hostname\x18\x01 \x01(\t\x12\x0f\n\x07ip_addr\x18\x02 \x01(\t\x12\x15\n\rplasma_socket\x18\x03 \x01(\t\x12\x10\n\x08rpc_port\x18\x04 \x01(\x05\x12\x12\n\nrpc_target\x18\x05 \x01(\t\x12\x19\n\x11obj_transfer_port\x18\x06 \x01(\x05\x12\x1b\n\x13obj_transfer_target\x18\x07 \x01(\t\x12\x12\n\ngroup_list\x18\x08 \x03(\t\"w\n\x1dRegisterStorageServerResponse\x12\x36\n\x0b\x65tcd_server\x18\x01 \x01(\x0b\x32!.di_store.node_tracker.EtcdServer\x12\x1e\n\x16storage_server_ip_addr\x18\x02 \x01(\t\"(\n\rStorageClient\x12\x17\n\x0fserver_hostname\x18\x01 \x01(\t\"\x95\x01\n\x1dRegisterStorageClientResponse\x12\x36\n\x0b\x65tcd_server\x18\x01 \x01(\x0b\x32!.di_store.node_tracker.EtcdServer\x12<\n\x0estorage_server\x18\x02 \x01(\x0b\x32$.di_store.node_tracker.StorageServer\"+\n\nEtcdServer\x12\x0f\n\x07ip_addr\x18\x01 \x01(\t\x12\x0c\n\x04port\x18\x02 \x01(\x05\"!\n\x1fUnregisterStorageServerResponse2\xa6\x06\n\x0bNodeTracker\x12w\n\x17register_storage_server\x12$.di_store.node_tracker.StorageServer\x1a\x34.di_store.node_tracker.RegisterStorageServerResponse\"\x00\x12{\n\x19unregister_storage_server\x12$.di_store.node_tracker.StorageServer\x1a\x36.di_store.node_tracker.UnregisterStorageServerResponse\"\x00\x12w\n\x17register_storage_client\x12$.di_store.node_tracker.StorageClient\x1a\x34.di_store.node_tracker.RegisterStorageClientResponse\"\x00\x12p\n\x0fregister_object\x12,.di_store.node_tracker.RegisterObjectRequest\x1a-.di_store.node_tracker.RegisterObjectResponse\"\x00\x12\x64\n\x0bserver_info\x12(.di_store.node_tracker.ServerInfoRequest\x1a).di_store.node_tracker.ServerInfoResponse\"\x00\x12\x64\n\x0bobject_info\x12(.di_store.node_tracker.ObjectInfoRequest\x1a).di_store.node_tracker.ObjectInfoResponse\"\x00\x12j\n\robject_delete\x12*.di_store.node_tracker.ObjectDeleteRequest\x1a+.di_store.node_tracker.ObjectDeleteResponse\"\x00\x42\x1aZ\x18\x64i_store/pb/node_trackerb\x06proto3'
 )
 
 
@@ -271,6 +271,20 @@ _REGISTEROBJECTREQUEST = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='push_hostname_list', full_name='di_store.node_tracker.RegisterObjectRequest.push_hostname_list', index=2,
+      number=3, type=9, cpp_type=9, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='push_group_list', full_name='di_store.node_tracker.RegisterObjectRequest.push_group_list', index=3,
+      number=4, type=9, cpp_type=9, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -284,7 +298,7 @@ _REGISTEROBJECTREQUEST = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=459,
-  serialized_end=530,
+  serialized_end=583,
 )
 
 
@@ -308,8 +322,8 @@ _REGISTEROBJECTRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=532,
-  serialized_end=556,
+  serialized_start=585,
+  serialized_end=609,
 )
 
 
@@ -336,16 +350,16 @@ _STORAGESERVER = _descriptor.Descriptor(
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='rpc_port', full_name='di_store.node_tracker.StorageServer.rpc_port', index=2,
-      number=3, type=5, cpp_type=1, label=1,
-      has_default_value=False, default_value=0,
+      name='plasma_socket', full_name='di_store.node_tracker.StorageServer.plasma_socket', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
     _descriptor.FieldDescriptor(
-      name='plasma_socket', full_name='di_store.node_tracker.StorageServer.plasma_socket', index=3,
-      number=4, type=9, cpp_type=9, label=1,
-      has_default_value=False, default_value=b"".decode('utf-8'),
+      name='rpc_port', full_name='di_store.node_tracker.StorageServer.rpc_port', index=3,
+      number=4, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
@@ -353,6 +367,27 @@ _STORAGESERVER = _descriptor.Descriptor(
       name='rpc_target', full_name='di_store.node_tracker.StorageServer.rpc_target', index=4,
       number=5, type=9, cpp_type=9, label=1,
       has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='obj_transfer_port', full_name='di_store.node_tracker.StorageServer.obj_transfer_port', index=5,
+      number=6, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='obj_transfer_target', full_name='di_store.node_tracker.StorageServer.obj_transfer_target', index=6,
+      number=7, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='group_list', full_name='di_store.node_tracker.StorageServer.group_list', index=7,
+      number=8, type=9, cpp_type=9, label=3,
+      has_default_value=False, default_value=[],
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
@@ -368,8 +403,8 @@ _STORAGESERVER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=558,
-  serialized_end=669,
+  serialized_start=612,
+  serialized_end=799,
 )
 
 
@@ -407,8 +442,8 @@ _REGISTERSTORAGESERVERRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=671,
-  serialized_end=790,
+  serialized_start=801,
+  serialized_end=920,
 )
 
 
@@ -439,8 +474,8 @@ _STORAGECLIENT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=792,
-  serialized_end=832,
+  serialized_start=922,
+  serialized_end=962,
 )
 
 
@@ -478,8 +513,8 @@ _REGISTERSTORAGECLIENTRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=835,
-  serialized_end=984,
+  serialized_start=965,
+  serialized_end=1114,
 )
 
 
@@ -517,8 +552,33 @@ _ETCDSERVER = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=986,
-  serialized_end=1029,
+  serialized_start=1116,
+  serialized_end=1159,
+)
+
+
+_UNREGISTERSTORAGESERVERRESPONSE = _descriptor.Descriptor(
+  name='UnregisterStorageServerResponse',
+  full_name='di_store.node_tracker.UnregisterStorageServerResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1161,
+  serialized_end=1194,
 )
 
 _OBJECTINFORESPONSE.fields_by_name['object_info_list'].message_type = _OBJECTINFO
@@ -540,6 +600,7 @@ DESCRIPTOR.message_types_by_name['RegisterStorageServerResponse'] = _REGISTERSTO
 DESCRIPTOR.message_types_by_name['StorageClient'] = _STORAGECLIENT
 DESCRIPTOR.message_types_by_name['RegisterStorageClientResponse'] = _REGISTERSTORAGECLIENTRESPONSE
 DESCRIPTOR.message_types_by_name['EtcdServer'] = _ETCDSERVER
+DESCRIPTOR.message_types_by_name['UnregisterStorageServerResponse'] = _UNREGISTERSTORAGESERVERRESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 ObjectDeleteRequest = _reflection.GeneratedProtocolMessageType('ObjectDeleteRequest', (_message.Message,), {
@@ -640,6 +701,13 @@ EtcdServer = _reflection.GeneratedProtocolMessageType('EtcdServer', (_message.Me
   })
 _sym_db.RegisterMessage(EtcdServer)
 
+UnregisterStorageServerResponse = _reflection.GeneratedProtocolMessageType('UnregisterStorageServerResponse', (_message.Message,), {
+  'DESCRIPTOR' : _UNREGISTERSTORAGESERVERRESPONSE,
+  '__module__' : 'node_tracker_pb2'
+  # @@protoc_insertion_point(class_scope:di_store.node_tracker.UnregisterStorageServerResponse)
+  })
+_sym_db.RegisterMessage(UnregisterStorageServerResponse)
+
 
 DESCRIPTOR._options = None
 
@@ -650,8 +718,8 @@ _NODETRACKER = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=1032,
-  serialized_end=1713,
+  serialized_start=1197,
+  serialized_end=2003,
   methods=[
   _descriptor.MethodDescriptor(
     name='register_storage_server',
@@ -664,9 +732,19 @@ _NODETRACKER = _descriptor.ServiceDescriptor(
     create_key=_descriptor._internal_create_key,
   ),
   _descriptor.MethodDescriptor(
+    name='unregister_storage_server',
+    full_name='di_store.node_tracker.NodeTracker.unregister_storage_server',
+    index=1,
+    containing_service=None,
+    input_type=_STORAGESERVER,
+    output_type=_UNREGISTERSTORAGESERVERRESPONSE,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
+  _descriptor.MethodDescriptor(
     name='register_storage_client',
     full_name='di_store.node_tracker.NodeTracker.register_storage_client',
-    index=1,
+    index=2,
     containing_service=None,
     input_type=_STORAGECLIENT,
     output_type=_REGISTERSTORAGECLIENTRESPONSE,
@@ -676,7 +754,7 @@ _NODETRACKER = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='register_object',
     full_name='di_store.node_tracker.NodeTracker.register_object',
-    index=2,
+    index=3,
     containing_service=None,
     input_type=_REGISTEROBJECTREQUEST,
     output_type=_REGISTEROBJECTRESPONSE,
@@ -686,7 +764,7 @@ _NODETRACKER = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='server_info',
     full_name='di_store.node_tracker.NodeTracker.server_info',
-    index=3,
+    index=4,
     containing_service=None,
     input_type=_SERVERINFOREQUEST,
     output_type=_SERVERINFORESPONSE,
@@ -696,7 +774,7 @@ _NODETRACKER = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='object_info',
     full_name='di_store.node_tracker.NodeTracker.object_info',
-    index=4,
+    index=5,
     containing_service=None,
     input_type=_OBJECTINFOREQUEST,
     output_type=_OBJECTINFORESPONSE,
@@ -706,7 +784,7 @@ _NODETRACKER = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='object_delete',
     full_name='di_store.node_tracker.NodeTracker.object_delete',
-    index=5,
+    index=6,
     containing_service=None,
     input_type=_OBJECTDELETEREQUEST,
     output_type=_OBJECTDELETERESPONSE,

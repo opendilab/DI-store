@@ -3,19 +3,17 @@ package plasma_server
 import (
 	"context"
 	"di_store/util"
-	_ "embed"
+	"os"
 	"strconv"
+
+	"github.com/pkg/errors"
 )
 
-//plasma-store-server
-
-//go:embed plasma-store-server
-var embeddedBinary []byte
-
-func RunPlasmaStoreServer(ctx context.Context, memoryByte int, socketPath string) (context.Context, error) {
-	p, err := util.CreateMemFileFromBytes(embeddedBinary)
-	if err != nil {
-		return nil, err
+func RunPlasmaStoreServer(ctx context.Context, memoryByte int, socketPath string) error {
+	execPath := os.Getenv("PLASMA_STORE_SERVER_EXEC")
+	if execPath == "" {
+		return errors.Errorf("environment variable PLASMA_STORE_SERVER_EXEC not found")
 	}
-	return util.RunCmd(ctx, p, "-m", strconv.Itoa(memoryByte), "-s", socketPath), nil
+
+	return util.RunCmd(ctx, execPath, "-m", strconv.Itoa(memoryByte), "-s", socketPath)
 }

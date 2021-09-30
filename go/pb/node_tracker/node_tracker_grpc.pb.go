@@ -19,6 +19,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type NodeTrackerClient interface {
 	RegisterStorageServer(ctx context.Context, in *StorageServer, opts ...grpc.CallOption) (*RegisterStorageServerResponse, error)
+	UnregisterStorageServer(ctx context.Context, in *StorageServer, opts ...grpc.CallOption) (*UnregisterStorageServerResponse, error)
 	RegisterStorageClient(ctx context.Context, in *StorageClient, opts ...grpc.CallOption) (*RegisterStorageClientResponse, error)
 	RegisterObject(ctx context.Context, in *RegisterObjectRequest, opts ...grpc.CallOption) (*RegisterObjectResponse, error)
 	ServerInfo(ctx context.Context, in *ServerInfoRequest, opts ...grpc.CallOption) (*ServerInfoResponse, error)
@@ -37,6 +38,15 @@ func NewNodeTrackerClient(cc grpc.ClientConnInterface) NodeTrackerClient {
 func (c *nodeTrackerClient) RegisterStorageServer(ctx context.Context, in *StorageServer, opts ...grpc.CallOption) (*RegisterStorageServerResponse, error) {
 	out := new(RegisterStorageServerResponse)
 	err := c.cc.Invoke(ctx, "/di_store.node_tracker.NodeTracker/register_storage_server", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeTrackerClient) UnregisterStorageServer(ctx context.Context, in *StorageServer, opts ...grpc.CallOption) (*UnregisterStorageServerResponse, error) {
+	out := new(UnregisterStorageServerResponse)
+	err := c.cc.Invoke(ctx, "/di_store.node_tracker.NodeTracker/unregister_storage_server", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -93,6 +103,7 @@ func (c *nodeTrackerClient) ObjectDelete(ctx context.Context, in *ObjectDeleteRe
 // for forward compatibility
 type NodeTrackerServer interface {
 	RegisterStorageServer(context.Context, *StorageServer) (*RegisterStorageServerResponse, error)
+	UnregisterStorageServer(context.Context, *StorageServer) (*UnregisterStorageServerResponse, error)
 	RegisterStorageClient(context.Context, *StorageClient) (*RegisterStorageClientResponse, error)
 	RegisterObject(context.Context, *RegisterObjectRequest) (*RegisterObjectResponse, error)
 	ServerInfo(context.Context, *ServerInfoRequest) (*ServerInfoResponse, error)
@@ -107,6 +118,9 @@ type UnimplementedNodeTrackerServer struct {
 
 func (UnimplementedNodeTrackerServer) RegisterStorageServer(context.Context, *StorageServer) (*RegisterStorageServerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterStorageServer not implemented")
+}
+func (UnimplementedNodeTrackerServer) UnregisterStorageServer(context.Context, *StorageServer) (*UnregisterStorageServerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnregisterStorageServer not implemented")
 }
 func (UnimplementedNodeTrackerServer) RegisterStorageClient(context.Context, *StorageClient) (*RegisterStorageClientResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterStorageClient not implemented")
@@ -150,6 +164,24 @@ func _NodeTracker_RegisterStorageServer_Handler(srv interface{}, ctx context.Con
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NodeTrackerServer).RegisterStorageServer(ctx, req.(*StorageServer))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodeTracker_UnregisterStorageServer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorageServer)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeTrackerServer).UnregisterStorageServer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/di_store.node_tracker.NodeTracker/unregister_storage_server",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeTrackerServer).UnregisterStorageServer(ctx, req.(*StorageServer))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -254,6 +286,10 @@ var NodeTracker_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "register_storage_server",
 			Handler:    _NodeTracker_RegisterStorageServer_Handler,
+		},
+		{
+			MethodName: "unregister_storage_server",
+			Handler:    _NodeTracker_UnregisterStorageServer_Handler,
 		},
 		{
 			MethodName: "register_storage_client",

@@ -11,18 +11,84 @@ from google.protobuf import symbol_database as _symbol_database
 _sym_db = _symbol_database.Default()
 
 
+from ..node_tracker import node_tracker_pb2 as node__tracker__pb2
 
 
 DESCRIPTOR = _descriptor.FileDescriptor(
   name='storage_server.proto',
   package='di_store.storage_server',
   syntax='proto3',
-  serialized_options=b'Z\021pb/storage_server',
+  serialized_options=b'Z\032di_store/pb/storage_server',
   create_key=_descriptor._internal_create_key,
-  serialized_pb=b'\n\x14storage_server.proto\x12\x17\x64i_store.storage_server\"+\n\rDeleteRequest\x12\x1a\n\x12object_id_hex_list\x18\x01 \x03(\t\"\x10\n\x0e\x44\x65leteResponse\"%\n\x0c\x46\x65tchRequest\x12\x15\n\robject_id_hex\x18\x01 \x01(\t\"\x0f\n\rFetchResponse\"#\n\nGetRequest\x12\x15\n\robject_id_hex\x18\x01 \x01(\t\".\n\x0bGetResponse\x12\x11\n\tnot_found\x18\x01 \x01(\x08\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\x32\x98\x02\n\x0bObjectStore\x12X\n\x05\x66\x65tch\x12%.di_store.storage_server.FetchRequest\x1a&.di_store.storage_server.FetchResponse\"\x00\x12R\n\x03get\x12#.di_store.storage_server.GetRequest\x1a$.di_store.storage_server.GetResponse\"\x00\x12[\n\x06\x64\x65lete\x12&.di_store.storage_server.DeleteRequest\x1a\'.di_store.storage_server.DeleteResponse\"\x00\x42\x13Z\x11pb/storage_serverb\x06proto3'
+  serialized_pb=b'\n\x14storage_server.proto\x12\x17\x64i_store.storage_server\x1a\x12node_tracker.proto\"g\n\x1aUpdateStorageServerRequest\x12\x39\n\x0bserver_info\x18\x01 \x01(\x0b\x32$.di_store.node_tracker.StorageServer\x12\x0e\n\x06remove\x18\x02 \x01(\x08\"\x1d\n\x1bUpdateStorageServerResponse\"+\n\rDeleteRequest\x12\x1a\n\x12object_id_hex_list\x18\x01 \x03(\t\"\x10\n\x0e\x44\x65leteResponse\"_\n\x0c\x46\x65tchRequest\x12\x15\n\robject_id_hex\x18\x01 \x01(\t\x12\x0f\n\x07via_rpc\x18\x02 \x01(\x08\x12\x10\n\x08src_node\x18\x03 \x01(\t\x12\x15\n\rsrc_node_only\x18\x04 \x01(\x08\"\x0f\n\rFetchResponse\"#\n\nGetRequest\x12\x15\n\robject_id_hex\x18\x01 \x01(\t\".\n\x0bGetResponse\x12\x11\n\tnot_found\x18\x01 \x01(\x08\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\x0c\x32\x9f\x03\n\x0bObjectStore\x12\x84\x01\n\x15update_storage_server\x12\x33.di_store.storage_server.UpdateStorageServerRequest\x1a\x34.di_store.storage_server.UpdateStorageServerResponse\"\x00\x12X\n\x05\x66\x65tch\x12%.di_store.storage_server.FetchRequest\x1a&.di_store.storage_server.FetchResponse\"\x00\x12R\n\x03get\x12#.di_store.storage_server.GetRequest\x1a$.di_store.storage_server.GetResponse\"\x00\x12[\n\x06\x64\x65lete\x12&.di_store.storage_server.DeleteRequest\x1a\'.di_store.storage_server.DeleteResponse\"\x00\x42\x1cZ\x1a\x64i_store/pb/storage_serverb\x06proto3'
+  ,
+  dependencies=[node__tracker__pb2.DESCRIPTOR,])
+
+
+
+
+_UPDATESTORAGESERVERREQUEST = _descriptor.Descriptor(
+  name='UpdateStorageServerRequest',
+  full_name='di_store.storage_server.UpdateStorageServerRequest',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='server_info', full_name='di_store.storage_server.UpdateStorageServerRequest.server_info', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='remove', full_name='di_store.storage_server.UpdateStorageServerRequest.remove', index=1,
+      number=2, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=69,
+  serialized_end=172,
 )
 
 
+_UPDATESTORAGESERVERRESPONSE = _descriptor.Descriptor(
+  name='UpdateStorageServerResponse',
+  full_name='di_store.storage_server.UpdateStorageServerResponse',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  create_key=_descriptor._internal_create_key,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  serialized_options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=174,
+  serialized_end=203,
+)
 
 
 _DELETEREQUEST = _descriptor.Descriptor(
@@ -52,8 +118,8 @@ _DELETEREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=49,
-  serialized_end=92,
+  serialized_start=205,
+  serialized_end=248,
 )
 
 
@@ -77,8 +143,8 @@ _DELETERESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=94,
-  serialized_end=110,
+  serialized_start=250,
+  serialized_end=266,
 )
 
 
@@ -97,6 +163,27 @@ _FETCHREQUEST = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='via_rpc', full_name='di_store.storage_server.FetchRequest.via_rpc', index=1,
+      number=2, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='src_node', full_name='di_store.storage_server.FetchRequest.src_node', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=b"".decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
+    _descriptor.FieldDescriptor(
+      name='src_node_only', full_name='di_store.storage_server.FetchRequest.src_node_only', index=3,
+      number=4, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      serialized_options=None, file=DESCRIPTOR,  create_key=_descriptor._internal_create_key),
   ],
   extensions=[
   ],
@@ -109,8 +196,8 @@ _FETCHREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=112,
-  serialized_end=149,
+  serialized_start=268,
+  serialized_end=363,
 )
 
 
@@ -134,8 +221,8 @@ _FETCHRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=151,
-  serialized_end=166,
+  serialized_start=365,
+  serialized_end=380,
 )
 
 
@@ -166,8 +253,8 @@ _GETREQUEST = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=168,
-  serialized_end=203,
+  serialized_start=382,
+  serialized_end=417,
 )
 
 
@@ -205,10 +292,13 @@ _GETRESPONSE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=205,
-  serialized_end=251,
+  serialized_start=419,
+  serialized_end=465,
 )
 
+_UPDATESTORAGESERVERREQUEST.fields_by_name['server_info'].message_type = node__tracker__pb2._STORAGESERVER
+DESCRIPTOR.message_types_by_name['UpdateStorageServerRequest'] = _UPDATESTORAGESERVERREQUEST
+DESCRIPTOR.message_types_by_name['UpdateStorageServerResponse'] = _UPDATESTORAGESERVERRESPONSE
 DESCRIPTOR.message_types_by_name['DeleteRequest'] = _DELETEREQUEST
 DESCRIPTOR.message_types_by_name['DeleteResponse'] = _DELETERESPONSE
 DESCRIPTOR.message_types_by_name['FetchRequest'] = _FETCHREQUEST
@@ -216,6 +306,20 @@ DESCRIPTOR.message_types_by_name['FetchResponse'] = _FETCHRESPONSE
 DESCRIPTOR.message_types_by_name['GetRequest'] = _GETREQUEST
 DESCRIPTOR.message_types_by_name['GetResponse'] = _GETRESPONSE
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
+
+UpdateStorageServerRequest = _reflection.GeneratedProtocolMessageType('UpdateStorageServerRequest', (_message.Message,), {
+  'DESCRIPTOR' : _UPDATESTORAGESERVERREQUEST,
+  '__module__' : 'storage_server_pb2'
+  # @@protoc_insertion_point(class_scope:di_store.storage_server.UpdateStorageServerRequest)
+  })
+_sym_db.RegisterMessage(UpdateStorageServerRequest)
+
+UpdateStorageServerResponse = _reflection.GeneratedProtocolMessageType('UpdateStorageServerResponse', (_message.Message,), {
+  'DESCRIPTOR' : _UPDATESTORAGESERVERRESPONSE,
+  '__module__' : 'storage_server_pb2'
+  # @@protoc_insertion_point(class_scope:di_store.storage_server.UpdateStorageServerResponse)
+  })
+_sym_db.RegisterMessage(UpdateStorageServerResponse)
 
 DeleteRequest = _reflection.GeneratedProtocolMessageType('DeleteRequest', (_message.Message,), {
   'DESCRIPTOR' : _DELETEREQUEST,
@@ -269,13 +373,23 @@ _OBJECTSTORE = _descriptor.ServiceDescriptor(
   index=0,
   serialized_options=None,
   create_key=_descriptor._internal_create_key,
-  serialized_start=254,
-  serialized_end=534,
+  serialized_start=468,
+  serialized_end=883,
   methods=[
+  _descriptor.MethodDescriptor(
+    name='update_storage_server',
+    full_name='di_store.storage_server.ObjectStore.update_storage_server',
+    index=0,
+    containing_service=None,
+    input_type=_UPDATESTORAGESERVERREQUEST,
+    output_type=_UPDATESTORAGESERVERRESPONSE,
+    serialized_options=None,
+    create_key=_descriptor._internal_create_key,
+  ),
   _descriptor.MethodDescriptor(
     name='fetch',
     full_name='di_store.storage_server.ObjectStore.fetch',
-    index=0,
+    index=1,
     containing_service=None,
     input_type=_FETCHREQUEST,
     output_type=_FETCHRESPONSE,
@@ -285,7 +399,7 @@ _OBJECTSTORE = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='get',
     full_name='di_store.storage_server.ObjectStore.get',
-    index=1,
+    index=2,
     containing_service=None,
     input_type=_GETREQUEST,
     output_type=_GETRESPONSE,
@@ -295,7 +409,7 @@ _OBJECTSTORE = _descriptor.ServiceDescriptor(
   _descriptor.MethodDescriptor(
     name='delete',
     full_name='di_store.storage_server.ObjectStore.delete',
-    index=2,
+    index=3,
     containing_service=None,
     input_type=_DELETEREQUEST,
     output_type=_DELETERESPONSE,
