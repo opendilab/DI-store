@@ -21,8 +21,8 @@ type FetchFn func(ctx context.Context, objID string, src string, dst string) err
 type ObjectFetchWorker struct {
 	ObjID             string
 	Ctx               context.Context
-	AvailableNodeList []*FetchNodeState
-	WaitingNodeList   []*FetchNodeState
+	AvailableNodeList []*SrcNodeState
+	WaitingNodeList   []*DstNodeState
 	FinishedNodeList  []string
 	FailedNodeList    []string
 	InProgressCnt     int
@@ -30,10 +30,16 @@ type ObjectFetchWorker struct {
 	cancel            context.CancelFunc
 }
 
-type FetchNodeState struct {
+type SrcNodeState struct {
 	Hostname   string
+	VirtualID  int
 	FailedCnt  int
 	SucceedCnt int
+}
+
+type DstNodeState struct {
+	Hostname  string
+	FailedCnt int
 }
 
 func taskMainLoop(taskQueue <-chan func() error) {
@@ -152,14 +158,18 @@ func InitObjectFetchWorker(ctx context.Context, objID string, availableNodeList 
 	span, ctx := opentracing.StartSpanFromContext(ctx, "InitObjectFetchWorker")
 	defer span.Finish()
 
-	_availableNodeList := make([]*FetchNodeState, len(availableNodeList))
+	virtualNode := util.CommonConfig.FetchSrcVirtualNodeNumber
+	_availableNodeList := make([]*SrcNodeState, 0, len(availableNodeList)*virtualNode)
 	for i := 0; i < len(availableNodeList); i++ {
-		_availableNodeList[i] = &FetchNodeState{Hostname: availableNodeList[i]}
+		for virtualID := 0; virtualID < virtualNode; virtualID++ {
+			_availableNodeList = append(
+				_availableNodeList, &SrcNodeState{Hostname: availableNodeList[i], VirtualID: virtualID})
+		}
 	}
 
-	_waitingNodeList := make([]*FetchNodeState, len(waitingNodeList))
+	_waitingNodeList := make([]*DstNodeState, len(waitingNodeList))
 	for i := 0; i < len(waitingNodeList); i++ {
-		_waitingNodeList[i] = &FetchNodeState{Hostname: waitingNodeList[i]}
+		_waitingNodeList[i] = &DstNodeState{Hostname: waitingNodeList[i]}
 	}
 
 	return &ObjectFetchWorker{
@@ -191,16 +201,18 @@ func (w *ObjectFetchWorker) DispatchTask(fetch FetchFn) {
 		w.WaitingNodeList[i], w.WaitingNodeList[j] = w.WaitingNodeList[j], w.WaitingNodeList[i]
 	})
 
-	fetchFanout := util.CommonConfig.FetchFanout
+	virtualNodeFanout := util.CommonConfig.FetchSrcVirtualNodeFanout
 	retryMax := util.CommonConfig.FetchTaskRetryMax
-	log.Debugf("ObjectFetchWorker.DispatchTask, availableNodeList: %v, waitingNodeList: %v, fetchFanout: %v, retryMax: %v",
-		w.AvailableNodeList, w.WaitingNodeList, fetchFanout, retryMax)
+	virtualNodeNumber := util.CommonConfig.FetchSrcVirtualNodeNumber
+	log.Debugf("ObjectFetchWorker.DispatchTask, availableNodeList: %+v, waitingNodeList: %+v, VirtualNodeNumber: %+v, VirtualNodeFanout: %v, retryMax: %v",
+		w.AvailableNodeList, w.WaitingNodeList, virtualNodeNumber, virtualNodeFanout, retryMax)
 
 	n := min(len(w.AvailableNodeList), len(w.WaitingNodeList))
 	for i := 0; i < n; i++ {
 		src := w.AvailableNodeList[i]
 		dst := w.WaitingNodeList[i]
 		go func() {
+			log.Debugf("fetch: %+v -> %+v", src, dst)
 			err := fetch(w.Ctx, w.ObjID, src.Hostname, dst.Hostname)
 			w.mu.Lock()
 			defer w.mu.Unlock()
@@ -224,18 +236,23 @@ func (w *ObjectFetchWorker) DispatchTask(fetch FetchFn) {
 				src.FailedCnt = 0
 				dst.FailedCnt = 0
 				src.SucceedCnt += 1
-				if src.SucceedCnt < fetchFanout {
+				if src.SucceedCnt < virtualNodeFanout {
 					w.AvailableNodeList = append(w.AvailableNodeList, src)
 				} else {
-					log.Debugf("%v has reached the fetch fanout limit %v", src.Hostname, fetchFanout)
+					log.Debugf("%v (%v) has reached the fetch fanout limit %v", src.Hostname, src.VirtualID, virtualNodeFanout)
 				}
-				w.AvailableNodeList = append(w.AvailableNodeList, dst)
+				for virtualID := 0; virtualID < virtualNodeNumber; virtualID++ {
+					w.AvailableNodeList = append(w.AvailableNodeList, &SrcNodeState{
+						Hostname:  dst.Hostname,
+						VirtualID: virtualID,
+					})
+				}
+
 				w.FinishedNodeList = append(w.FinishedNodeList, dst.Hostname)
 			}
 			w.InProgressCnt -= 1
 			go w.DispatchTask(fetch)
 		}()
-
 	}
 	w.AvailableNodeList = w.AvailableNodeList[n:]
 	w.WaitingNodeList = w.WaitingNodeList[n:]
@@ -249,6 +266,14 @@ func min(a, b int) int {
 	return b
 }
 
-func (s *FetchNodeState) String() string {
-	return fmt.Sprintf("{%v, %v}", s.Hostname, s.FailedCnt)
+func (s *SrcNodeState) String() string {
+	return fmt.Sprintf(
+		"{Hostname: %v (%v), FailedCnt: %v, SucceedCnt: %v}",
+		s.Hostname, s.VirtualID, s.FailedCnt, s.SucceedCnt)
+}
+
+func (s *DstNodeState) String() string {
+	return fmt.Sprintf(
+		"{Hostname: %v, FailedCnt: %v}",
+		s.Hostname, s.FailedCnt)
 }

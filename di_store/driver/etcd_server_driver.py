@@ -7,7 +7,7 @@ import platform
 from signal import SIGINT, SIGTERM
 import asyncio
 from di_store.common.config import Config
-from di_store.common.util import AsyncSubprocess
+from di_store.common.util import AsyncSubprocess, create_executable_tmp_file
 
 
 async def run(command):
@@ -44,7 +44,8 @@ def main(args):
 
     bin_path = os.path.abspath(os.path.join(
         os.path.dirname(__file__), '..', 'bin', f'etcd-{platform.system().lower()}'))
-    cmd = [bin_path]
+    bin_tmp = create_executable_tmp_file(bin_path)
+    cmd = [bin_tmp.name]
 
     if unsafe_no_fsync:
         cmd.append('--unsafe-no-fsync')

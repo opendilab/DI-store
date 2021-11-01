@@ -38,13 +38,14 @@ type StorageClient struct {
 }
 
 type Common struct {
-	DialTimeout            time.Duration `yaml:"dial_timeout"          default:"10s"`
-	RequestTimeout         time.Duration `yaml:"request_timeout"       default:"60s"`
-	FetchTaskRetryMax      int           `yaml:"fetch_task_retry_max"  default:"5"`
-	FetchFanout            int           `yaml:"fetch_fanout"          default:"3" `
-	BackgroundTaskLimit    int           `yaml:"background_task_limit" default:"20"`
-	TaskQueueCap           int           `yaml:"task_queue_cap"        default:"40"`
-	GrpcMaxCallRecvMsgSize int           `yaml:"grpc_max_call_recv_msg_size" default:"1073741824"`
+	DialTimeout               time.Duration `yaml:"dial_timeout"          default:"10s"`
+	RequestTimeout            time.Duration `yaml:"request_timeout"       default:"60s"`
+	FetchTaskRetryMax         int           `yaml:"fetch_task_retry_max"  default:"5"`
+	FetchSrcVirtualNodeNumber int           `yaml:"fetch_src_virtual_node_number" default:"3"`
+	FetchSrcVirtualNodeFanout int           `yaml:"fetch_src_virtual_node_fanout" default:"1" `
+	BackgroundTaskLimit       int           `yaml:"background_task_limit" default:"20"`
+	TaskQueueCap              int           `yaml:"task_queue_cap"        default:"40"`
+	GrpcMaxCallRecvMsgSize    int           `yaml:"grpc_max_call_recv_msg_size" default:"1073741824"`
 }
 
 type Config struct {
