@@ -58,7 +58,7 @@ func NewStorageServer(
 			return nil, err
 		}
 	}
-
+	plasmaSocket = fmt.Sprintf("%s-%s", plasmaSocket, util.RandomHexString(10))
 	err := plasma.RunPlasmaStoreServer(ctx, plasmaMemoryByte, plasmaSocket)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to run plasma store server")

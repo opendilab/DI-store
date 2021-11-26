@@ -52,7 +52,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	if *hostname == "" {
+		h := os.Getenv("DI_STORE_NODE_NAME")
+		hostname = &h
+	}
 	if *hostname == "" {
 		h, err := os.Hostname()
 		if err != nil {
