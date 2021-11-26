@@ -58,5 +58,5 @@ func (rw *BytesReadWriter) Close() error {
 }
 
 func BytesWithoutCopy(p unsafe.Pointer, size int) []byte {
-	return (*[1 << 28]byte)(p)[:size:size]
+	return (*[1 << 32]byte)(p)[:size:size]
 }

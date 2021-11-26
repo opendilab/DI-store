@@ -49,6 +49,9 @@ func NewStorageServer(
 	groupList []string,
 ) (*StorageServer, error) {
 	if hostname == "" {
+		hostname = os.Getenv("DI_STORE_NODE_NAME")
+	}
+	if hostname == "" {
 		var err error
 		hostname, err = os.Hostname()
 		if err != nil {

@@ -25,7 +25,11 @@ class StorageClient(object):
         node_tracker_info = config.node_tracker()[0]
         node_tracker_host = node_tracker_info['rpc_host']
         node_tracker_port = node_tracker_info['rpc_port']
-        self.hostname = hostname or socket.gethostname()
+        if hostname is None:
+            hostname = os.getenv('DI_STORE_NODE_NAME')
+        if hostname is None:
+            hostname = socket.gethostname()
+        self.hostname = hostname
 
         self.node_tracker_client = NodeTrackerClient(
             node_tracker_host, node_tracker_port)
@@ -127,19 +131,19 @@ thread_local = threading.local()
 
 
 class Client:
-    def __init__(self, conf_path):
+    def __init__(self, conf_path, hostname=None):
         self.conf_path = conf_path
+        self.hostname = hostname
         self._get_local_client()
 
     def _get_local_client(self):
-
         current_id = os.getpid(), threading.get_ident()
         client_id, client = getattr(
             thread_local,
             self.conf_path,
             (None, None))
         if client_id != current_id:
-            client = StorageClient(self.conf_path)
+            client = StorageClient(self.conf_path, self.hostname)
             setattr(
                 thread_local,
                 self.conf_path,
