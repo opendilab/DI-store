@@ -10,6 +10,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/opentracing/opentracing-go"
 	ot_log "github.com/opentracing/opentracing-go/log"
@@ -33,6 +34,7 @@ type NodeTracker struct {
 	fetchTaskQueue    chan func() error
 	deleteTaskQueue   chan func() error
 	pushInfoTaskQueue chan func() error
+	m                 sync.Mutex
 }
 
 func NewNodeTracker(etcdHost string, etcdPort int, rpcHost string, rpcPort int) (*NodeTracker, error) {
@@ -537,6 +539,36 @@ func (tracker *NodeTracker) pushServerInfoToOthers(ref opentracing.SpanReference
 	}
 	log.Debugf("finish push server info of %v to all nodes", hostname)
 	return nil
+}
+
+func (tracker *NodeTracker) RegisterStorageGroup(
+	ctx context.Context, in *pbNodeTracker.StorageServer) (*pbNodeTracker.RegisterStorageGroupResponse, error) {
+	span, ctx := opentracing.StartSpanFromContext(ctx, "NodeTracker.RegisterStorageGroup")
+	defer span.Finish()
+	tracker.m.Lock()
+	defer tracker.m.Unlock()
+
+	hostname := in.GetHostname()
+	groupList := in.GetGroupList()
+	groupListKey := fmt.Sprintf("/storage_server/%s/group_list", hostname)
+	result, err := tracker.EtcdClient.Get(ctx, groupListKey)
+	if err != nil {
+		return nil, errors.Wrapf(err, "NodeTracker.RegisterStorageGroup")
+	}
+	if len(result.Kvs) == 0 {
+		return nil, errors.Errorf("hostname not found: ", hostname)
+	}
+	groupList = util.Unique(strings.Split(string(result.Kvs[0].Value), ","), groupList)
+	ops := make([]clientv3.Op, 0, len(groupList)+1)
+	ops = append(ops, clientv3.OpPut(groupListKey, strings.Join(groupList, ",")))
+	for _, group := range groupList {
+		ops = append(ops, clientv3.OpPut(fmt.Sprintf("/storage_server_group/%s/%s", group, hostname), ""))
+	}
+	_, err = tracker.EtcdClient.Txn(ctx).Then(ops...).Commit()
+	if err != nil {
+		return nil, err
+	}
+	return &pbNodeTracker.RegisterStorageGroupResponse{}, nil
 }
 
 func (tracker *NodeTracker) RegisterStorageServer(

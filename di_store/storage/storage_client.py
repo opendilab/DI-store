@@ -66,6 +66,13 @@ class StorageClient(object):
             print(f'can not connect to storage server {self.hostname}')
             sys.exit(1)
 
+    def register_group(self, group):
+        if isinstance(group, list):
+            group_list = group
+        else:
+            group_list = [group]
+        self.node_tracker_client.register_group(self.hostname, group_list)
+
     @trace(span_name='span')
     def put(self, data, object_id=None, prefetch_hostname=None, prefetch_group=None, span=None):
         if object_id is not None:
@@ -150,6 +157,9 @@ class Client:
                 (current_id, client)
             )
         return client
+
+    def register_group(self, *args, **kwargs):
+        return self._get_local_client().register_group(*args, **kwargs)
 
     def put(self, *args, **kwargs):
         return self._get_local_client().put(*args, **kwargs)

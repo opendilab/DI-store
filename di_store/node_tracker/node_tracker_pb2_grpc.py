@@ -24,6 +24,16 @@ class NodeTrackerStub(object):
                 request_serializer=node__tracker__pb2.StorageServer.SerializeToString,
                 response_deserializer=node__tracker__pb2.UnregisterStorageServerResponse.FromString,
                 )
+        self.register_storage_group = channel.unary_unary(
+                '/di_store.node_tracker.NodeTracker/register_storage_group',
+                request_serializer=node__tracker__pb2.StorageServer.SerializeToString,
+                response_deserializer=node__tracker__pb2.RegisterStorageGroupResponse.FromString,
+                )
+        self.unregister_storage_group = channel.unary_unary(
+                '/di_store.node_tracker.NodeTracker/unregister_storage_group',
+                request_serializer=node__tracker__pb2.StorageServer.SerializeToString,
+                response_deserializer=node__tracker__pb2.UnregisterStorageGroupResponse.FromString,
+                )
         self.register_storage_client = channel.unary_unary(
                 '/di_store.node_tracker.NodeTracker/register_storage_client',
                 request_serializer=node__tracker__pb2.StorageClient.SerializeToString,
@@ -61,6 +71,18 @@ class NodeTrackerServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def unregister_storage_server(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def register_storage_group(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def unregister_storage_group(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -108,6 +130,16 @@ def add_NodeTrackerServicer_to_server(servicer, server):
                     servicer.unregister_storage_server,
                     request_deserializer=node__tracker__pb2.StorageServer.FromString,
                     response_serializer=node__tracker__pb2.UnregisterStorageServerResponse.SerializeToString,
+            ),
+            'register_storage_group': grpc.unary_unary_rpc_method_handler(
+                    servicer.register_storage_group,
+                    request_deserializer=node__tracker__pb2.StorageServer.FromString,
+                    response_serializer=node__tracker__pb2.RegisterStorageGroupResponse.SerializeToString,
+            ),
+            'unregister_storage_group': grpc.unary_unary_rpc_method_handler(
+                    servicer.unregister_storage_group,
+                    request_deserializer=node__tracker__pb2.StorageServer.FromString,
+                    response_serializer=node__tracker__pb2.UnregisterStorageGroupResponse.SerializeToString,
             ),
             'register_storage_client': grpc.unary_unary_rpc_method_handler(
                     servicer.register_storage_client,
@@ -175,6 +207,40 @@ class NodeTracker(object):
         return grpc.experimental.unary_unary(request, target, '/di_store.node_tracker.NodeTracker/unregister_storage_server',
             node__tracker__pb2.StorageServer.SerializeToString,
             node__tracker__pb2.UnregisterStorageServerResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def register_storage_group(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/di_store.node_tracker.NodeTracker/register_storage_group',
+            node__tracker__pb2.StorageServer.SerializeToString,
+            node__tracker__pb2.RegisterStorageGroupResponse.FromString,
+            options, channel_credentials,
+            insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
+
+    @staticmethod
+    def unregister_storage_group(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(request, target, '/di_store.node_tracker.NodeTracker/unregister_storage_group',
+            node__tracker__pb2.StorageServer.SerializeToString,
+            node__tracker__pb2.UnregisterStorageGroupResponse.FromString,
             options, channel_credentials,
             insecure, call_credentials, compression, wait_for_ready, timeout, metadata)
 
