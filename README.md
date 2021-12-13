@@ -72,6 +72,9 @@ The following diagram illustrates the data dissemination.
 
 ![prefetch](./prefetch.svg)
 
+## Running DI-store on Kubernetes
+[k8s/README.md](k8s/README.md)
+
 ## Directory Structure
 ```text
 ├── di_store: python related codes
