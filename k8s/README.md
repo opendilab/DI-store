@@ -29,23 +29,34 @@ kubectl create -f di_store_k8s.yaml
 ```
 Specify the namespace with `-n <namespace>` if necessary.
 
-### Set `shareProcessNamespace` to `true`, and define the `DI_STORE_NODE_NAME` environment variable for your container
+### Configuration for Pods using DI-store client
+
+Add lines below (marked with `###`) to the k8s yaml file.
 
 
 ```yaml
 ...
 spec:
   ...
-  shareProcessNamespace: true
+  shareProcessNamespace: true       ###
+  ...
+  volumes:
+  - name: shared-memory             ###
+    hostPath:                       ###
+      path: /dev/shm                ###
   ...
   containers:
   - name: your-container
     ...
     env:
-    - name: DI_STORE_NODE_NAME
-      valueFrom:
-        fieldRef:
-          fieldPath: spec.nodeName
+    - name: DI_STORE_NODE_NAME      ###
+      valueFrom:                    ###
+        fieldRef:                   ###
+          fieldPath: spec.nodeName  ###
+    ...
+    volumeMounts:
+      - name: shared-memory         ###
+        mountPath: /dev/shm         ###
 ...
 ```
 
@@ -84,3 +95,9 @@ kubectl delete service node-tracker-$APP_ID
 kubectl delete pod node-tracker-$APP_ID
 kubectl delete daemonset storage-server-daemonset-$APP_ID
 ```
+
+### Note
+
+1. It's recommended to start an individual instance of DI-store engine for each application and shut down the instance when the application exits. The instance is able to keep running for a long time and serve multiple applications as well, which requires more CPU and memory resources. Make sure to delete objects that are no longer used to avoid memory leaks for long running.
+1. Whenever an instance launches (via `kubectl create -f di_store_k8s.yaml`), a pod is created for running `etcd_server` and `node_tracker` processes. At the same time, a pod running `storage_server` is started on each k8s node respectively (by default). In order to constrain the `storage_server` processes running on a particular set of nodes, `node selector` or `node affinity` should be added to the configuration of `storage-server-daemonset` in the k8s yaml file. More information about running pods on selected nodes can be found [here](https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#running-pods-on-select-nodes). Also notice that, for any node having pod running DI-store client, the pod running `storage_server` should be started at that node as well.
+1. For any pod running DI-store client, the specific `di_store_client.yaml` file generated together with the `di_store_k8s.yaml` should be used to initialize the client, so that the client will connect to the corresponding DI-store engine instance.
