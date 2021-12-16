@@ -7,7 +7,8 @@ import shutil
 
 
 def create_executable_tmp_file(src):
-    tmp_file = NamedTemporaryFile(delete=True)
+    file_base_name = os.path.basename(src)
+    tmp_file = NamedTemporaryFile(delete=True, prefix=file_base_name+'_')
     shutil.copy2(src, tmp_file.name)
     os.chmod(tmp_file.name, 0o700)
     tmp_file.file.close()
