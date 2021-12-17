@@ -1,0 +1,4 @@
+node_trackers:
+  - hostname: node-tracker-__APP_ID__
+    rpc_host: node-tracker-__APP_ID__
+    rpc_port: 50051

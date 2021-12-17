@@ -20,6 +20,8 @@ const _ = grpc.SupportPackageIsVersion7
 type NodeTrackerClient interface {
 	RegisterStorageServer(ctx context.Context, in *StorageServer, opts ...grpc.CallOption) (*RegisterStorageServerResponse, error)
 	UnregisterStorageServer(ctx context.Context, in *StorageServer, opts ...grpc.CallOption) (*UnregisterStorageServerResponse, error)
+	RegisterStorageGroup(ctx context.Context, in *StorageServer, opts ...grpc.CallOption) (*RegisterStorageGroupResponse, error)
+	UnregisterStorageGroup(ctx context.Context, in *StorageServer, opts ...grpc.CallOption) (*UnregisterStorageGroupResponse, error)
 	RegisterStorageClient(ctx context.Context, in *StorageClient, opts ...grpc.CallOption) (*RegisterStorageClientResponse, error)
 	RegisterObject(ctx context.Context, in *RegisterObjectRequest, opts ...grpc.CallOption) (*RegisterObjectResponse, error)
 	ServerInfo(ctx context.Context, in *ServerInfoRequest, opts ...grpc.CallOption) (*ServerInfoResponse, error)
@@ -47,6 +49,24 @@ func (c *nodeTrackerClient) RegisterStorageServer(ctx context.Context, in *Stora
 func (c *nodeTrackerClient) UnregisterStorageServer(ctx context.Context, in *StorageServer, opts ...grpc.CallOption) (*UnregisterStorageServerResponse, error) {
 	out := new(UnregisterStorageServerResponse)
 	err := c.cc.Invoke(ctx, "/di_store.node_tracker.NodeTracker/unregister_storage_server", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeTrackerClient) RegisterStorageGroup(ctx context.Context, in *StorageServer, opts ...grpc.CallOption) (*RegisterStorageGroupResponse, error) {
+	out := new(RegisterStorageGroupResponse)
+	err := c.cc.Invoke(ctx, "/di_store.node_tracker.NodeTracker/register_storage_group", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *nodeTrackerClient) UnregisterStorageGroup(ctx context.Context, in *StorageServer, opts ...grpc.CallOption) (*UnregisterStorageGroupResponse, error) {
+	out := new(UnregisterStorageGroupResponse)
+	err := c.cc.Invoke(ctx, "/di_store.node_tracker.NodeTracker/unregister_storage_group", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +124,8 @@ func (c *nodeTrackerClient) ObjectDelete(ctx context.Context, in *ObjectDeleteRe
 type NodeTrackerServer interface {
 	RegisterStorageServer(context.Context, *StorageServer) (*RegisterStorageServerResponse, error)
 	UnregisterStorageServer(context.Context, *StorageServer) (*UnregisterStorageServerResponse, error)
+	RegisterStorageGroup(context.Context, *StorageServer) (*RegisterStorageGroupResponse, error)
+	UnregisterStorageGroup(context.Context, *StorageServer) (*UnregisterStorageGroupResponse, error)
 	RegisterStorageClient(context.Context, *StorageClient) (*RegisterStorageClientResponse, error)
 	RegisterObject(context.Context, *RegisterObjectRequest) (*RegisterObjectResponse, error)
 	ServerInfo(context.Context, *ServerInfoRequest) (*ServerInfoResponse, error)
@@ -121,6 +143,12 @@ func (UnimplementedNodeTrackerServer) RegisterStorageServer(context.Context, *St
 }
 func (UnimplementedNodeTrackerServer) UnregisterStorageServer(context.Context, *StorageServer) (*UnregisterStorageServerResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UnregisterStorageServer not implemented")
+}
+func (UnimplementedNodeTrackerServer) RegisterStorageGroup(context.Context, *StorageServer) (*RegisterStorageGroupResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterStorageGroup not implemented")
+}
+func (UnimplementedNodeTrackerServer) UnregisterStorageGroup(context.Context, *StorageServer) (*UnregisterStorageGroupResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UnregisterStorageGroup not implemented")
 }
 func (UnimplementedNodeTrackerServer) RegisterStorageClient(context.Context, *StorageClient) (*RegisterStorageClientResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RegisterStorageClient not implemented")
@@ -182,6 +210,42 @@ func _NodeTracker_UnregisterStorageServer_Handler(srv interface{}, ctx context.C
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(NodeTrackerServer).UnregisterStorageServer(ctx, req.(*StorageServer))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodeTracker_RegisterStorageGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorageServer)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeTrackerServer).RegisterStorageGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/di_store.node_tracker.NodeTracker/register_storage_group",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeTrackerServer).RegisterStorageGroup(ctx, req.(*StorageServer))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _NodeTracker_UnregisterStorageGroup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StorageServer)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(NodeTrackerServer).UnregisterStorageGroup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/di_store.node_tracker.NodeTracker/unregister_storage_group",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(NodeTrackerServer).UnregisterStorageGroup(ctx, req.(*StorageServer))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -290,6 +354,14 @@ var NodeTracker_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "unregister_storage_server",
 			Handler:    _NodeTracker_UnregisterStorageServer_Handler,
+		},
+		{
+			MethodName: "register_storage_group",
+			Handler:    _NodeTracker_RegisterStorageGroup_Handler,
+		},
+		{
+			MethodName: "unregister_storage_group",
+			Handler:    _NodeTracker_UnregisterStorageGroup_Handler,
 		},
 		{
 			MethodName: "register_storage_client",

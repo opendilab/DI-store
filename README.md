@@ -56,10 +56,14 @@ start storage server with `group`
 di_store storage_server ./conf/di_store.yaml --group actor
 ```
 
+or register group in client
+```python
+client.register_group('actor')
+```
+
 specify `prefetch_group` when put object
 
 ```python
-from di_store import Client
 ref = client.put(b'Hello world.', prefetch_group='actor')
 ```
 
@@ -67,6 +71,9 @@ When an object is put with prefetch_group specified, a background schedule is tr
 The following diagram illustrates the data dissemination.
 
 ![prefetch](./prefetch.svg)
+
+## Running DI-store on Kubernetes
+[k8s/README.md](k8s/README.md)
 
 ## Directory Structure
 ```text

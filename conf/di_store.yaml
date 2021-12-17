@@ -1,7 +1,8 @@
 common:
   dial_timeout: 60s
   request_timeout: 120s
-  fetch_fanout: 3
+  fetch_src_virtual_node_number: 2 # src node fetch concurrence
+  fetch_src_virtual_node_fanout: 2 # how many copies a virtual node has to send1
   fetch_task_retry_max: 5
 
 etcd_servers:

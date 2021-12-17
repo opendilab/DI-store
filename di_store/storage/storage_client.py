@@ -25,7 +25,11 @@ class StorageClient(object):
         node_tracker_info = config.node_tracker()[0]
         node_tracker_host = node_tracker_info['rpc_host']
         node_tracker_port = node_tracker_info['rpc_port']
-        self.hostname = hostname or socket.gethostname()
+        if hostname is None:
+            hostname = os.getenv('DI_STORE_NODE_NAME')
+        if hostname is None:
+            hostname = socket.gethostname()
+        self.hostname = hostname
 
         self.node_tracker_client = NodeTrackerClient(
             node_tracker_host, node_tracker_port)
@@ -61,6 +65,13 @@ class StorageClient(object):
         else:
             print(f'can not connect to storage server {self.hostname}')
             sys.exit(1)
+
+    def register_group(self, group):
+        if isinstance(group, list):
+            group_list = group
+        else:
+            group_list = [group]
+        self.node_tracker_client.register_group(self.hostname, group_list)
 
     @trace(span_name='span')
     def put(self, data, object_id=None, prefetch_hostname=None, prefetch_group=None, span=None):
@@ -127,25 +138,28 @@ thread_local = threading.local()
 
 
 class Client:
-    def __init__(self, conf_path):
+    def __init__(self, conf_path, hostname=None):
         self.conf_path = conf_path
+        self.hostname = hostname
         self._get_local_client()
 
     def _get_local_client(self):
-
         current_id = os.getpid(), threading.get_ident()
         client_id, client = getattr(
             thread_local,
             self.conf_path,
             (None, None))
         if client_id != current_id:
-            client = StorageClient(self.conf_path)
+            client = StorageClient(self.conf_path, self.hostname)
             setattr(
                 thread_local,
                 self.conf_path,
                 (current_id, client)
             )
         return client
+
+    def register_group(self, *args, **kwargs):
+        return self._get_local_client().register_group(*args, **kwargs)
 
     def put(self, *args, **kwargs):
         return self._get_local_client().put(*args, **kwargs)

@@ -4,6 +4,7 @@ import os
 import signal
 from os import path
 from di_store.driver.etcd_server_driver import main as etcd_server_driver_main
+from di_store.common.util import create_executable_tmp_file
 
 platform = sys.platform
 if platform not in ('darwin', 'linux'):
@@ -14,10 +15,6 @@ executable = {
     'node_tracker': path.join(dir_path, '../bin', f'node_tracker_{platform}'),
     'storage_server': path.join(dir_path, '../bin', f'storage_server_{platform}'),
 }
-
-plasma_store_server_exec = path.join(
-    dir_path, '../bin', f'plasma-store-server-{platform}')
-os.environ['PLASMA_STORE_SERVER_EXEC'] = plasma_store_server_exec
 
 
 def main():
@@ -36,8 +33,16 @@ def main():
         elif exec_name not in executable:
             raise Exception(f'command `{exec_name}` is not supported')
         else:
+            if exec_name == 'storage_server':
+                plasma_store_server_exec = path.join(
+                    dir_path, '../bin', f'plasma-store-server-{platform}')
+                plasma_store_server_exec_tmp = create_executable_tmp_file(
+                    plasma_store_server_exec)
+                os.environ['PLASMA_STORE_SERVER_EXEC'] = plasma_store_server_exec_tmp.name
+
             exec = executable[exec_name]
-            cmd = [exec] + sys.argv[2:]
+            exec_tmp = create_executable_tmp_file(exec)
+            cmd = [exec_tmp.name] + sys.argv[2:]
             p = subprocess.Popen(cmd)
 
             def handle_signal(sig, frame):

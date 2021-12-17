@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: node-tracker-__APP_ID__
+  labels:
+    app: node-tracker-__APP_ID__
+spec:
+  volumes:
+  - name: shared-data
+    emptyDir: {}
+  containers:
+  - name: node-tracker
+    image: __IMAGE_TAG__
+    env:
+    - name: DI_STORE_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+    imagePullPolicy: Always
+    volumeMounts:
+      - mountPath: /di_store
+        name: shared-data
+    ports:
+      - name: server-port
+        containerPort: 50051
+    resources:
+      limits:
+        cpu: 100m
+        memory: 500Mi
+      requests:
+        cpu: 100m
+        memory: 500Mi
+    command: ["/bin/bash", "-c"]
+    args:
+    - |
+      cd /di_store
+      cat <<EOF > di_store_template.yaml
+      etcd_servers:
+        - hostname: __HOSTNAME__
+          listen_client_urls:
+            - http://127.0.0.1:2379
+          listen_peer_urls:
+            - http://127.0.0.1:2380
+
+      node_trackers:
+        - hostname: __HOSTNAME__
+          rpc_host: __HOSTNAME__
+          rpc_port: 50051
+      EOF
+      sed "s/__HOSTNAME__/$HOSTNAME/g" di_store_template.yaml > di_store.yaml
+      di_store etcd_server ./di_store.yaml &
+      di_store node_tracker ./di_store.yaml &
+      wait
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-tracker-__APP_ID__
+spec:
+  selector:
+    app: node-tracker-__APP_ID__
+  ports:
+    - protocol: TCP
+      port: 50051
+      targetPort: 50051
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: storage-server-daemonset-__APP_ID__
+  labels:
+    k8s-app: di-store
+spec:
+  selector:
+    matchLabels:
+      name: storage-server-daemonset-__APP_ID__
+  template:
+    metadata:
+      labels:
+        name: storage-server-daemonset-__APP_ID__
+    spec:
+      shareProcessNamespace: true
+      volumes:
+      - name: shared-data
+        emptyDir: {}
+      - name: shared-memory
+        hostPath:
+          path: /dev/shm
+      containers:
+      - name: storage-server
+        image: __IMAGE_TAG__
+        imagePullPolicy: Always
+        env:
+        - name: DI_STORE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        resources:
+          limits:
+            cpu: 100m
+            memory: 1Gi # increase the memory if necessary
+          requests:
+            cpu: 100m
+            memory: 1Gi
+        volumeMounts:
+          - name: shared-data
+            mountPath: /di_store
+          - name: shared-memory
+            mountPath: /dev/shm
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          cd /di_store
+          cat <<EOF > di_store.yaml
+          node_trackers:
+            - hostname: node-tracker-__APP_ID__
+              rpc_host: node-tracker-__APP_ID__
+              rpc_port: 50051
+
+          storage_servers:
+            - hostname: "*"
+              rpc_port: 0
+              plasma_socket: /dev/shm/plasma-__APP_ID__
+              plasma_memory_byte: 1000000000
+
+          EOF
+          di_store storage_server ./di_store.yaml

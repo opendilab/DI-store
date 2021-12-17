@@ -1,7 +1,6 @@
 package util
 
 import (
-	"bufio"
 	"encoding/binary"
 	"io"
 	"net"
@@ -9,13 +8,11 @@ import (
 )
 
 type BytesReadWriter struct {
-	_rw  *bufio.ReadWriter
 	conn net.Conn
 }
 
 func NewBytesReadWriter(conn net.Conn) *BytesReadWriter {
 	return &BytesReadWriter{
-		_rw:  bufio.NewReadWriter(bufio.NewReader(conn), bufio.NewWriter(conn)),
 		conn: conn,
 	}
 }
@@ -23,21 +20,17 @@ func NewBytesReadWriter(conn net.Conn) *BytesReadWriter {
 func (rw *BytesReadWriter) Write(p []byte) (int, error) {
 	bs := make([]byte, 4)
 	binary.LittleEndian.PutUint32(bs, uint32(len(p)))
-	n1, err := rw._rw.Write(bs)
+	n1, err := rw.conn.Write(bs)
 	if err != nil {
 		return n1, err
 	}
-	n2, err := rw._rw.Write(p)
-	if err != nil {
-		return n1 + n2, err
-	}
-	err = rw._rw.Flush()
+	n2, err := rw.conn.Write(p)
 	return n1 + n2, err
 }
 
 func (rw *BytesReadWriter) Read(buff []byte) ([]byte, error) {
 	bs := make([]byte, 4)
-	_, err := io.ReadFull(rw._rw, bs)
+	_, err := io.ReadFull(rw.conn, bs)
 	if err != nil {
 		return nil, err
 	}
@@ -56,7 +49,7 @@ func (rw *BytesReadWriter) Read(buff []byte) ([]byte, error) {
 	if size == 0 {
 		return data, nil
 	}
-	_, err = io.ReadFull(rw._rw, data)
+	_, err = io.ReadFull(rw.conn, data)
 	return data, err
 }
 
@@ -65,5 +58,5 @@ func (rw *BytesReadWriter) Close() error {
 }
 
 func BytesWithoutCopy(p unsafe.Pointer, size int) []byte {
-	return (*[1 << 28]byte)(p)[:size:size]
+	return (*[1 << 32]byte)(p)[:size:size]
 }

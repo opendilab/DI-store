@@ -49,13 +49,16 @@ func NewStorageServer(
 	groupList []string,
 ) (*StorageServer, error) {
 	if hostname == "" {
+		hostname = os.Getenv("DI_STORE_NODE_NAME")
+	}
+	if hostname == "" {
 		var err error
 		hostname, err = os.Hostname()
 		if err != nil {
 			return nil, err
 		}
 	}
-
+	plasmaSocket = fmt.Sprintf("%s-%s", plasmaSocket, util.RandomHexString(10))
 	err := plasma.RunPlasmaStoreServer(ctx, plasmaMemoryByte, plasmaSocket)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to run plasma store server")
