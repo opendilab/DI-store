@@ -51,10 +51,6 @@ class StorageClient(object):
         # the expire-time set of objects with ttl
         self.expire_set = {}
 
-        # start() the cleaning thread
-        # cleaning_thread = threading.Thread(target=self.removeTTLObjects())
-        # cleaning_thread.start()
-
     def wait_for_server(self):
         for i in range(1, 101):
             response = self.node_tracker_client.register_storage_client(
