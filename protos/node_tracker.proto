@@ -7,12 +7,15 @@ package di_store.node_tracker;
 service NodeTracker {
     rpc register_storage_server(StorageServer) returns (RegisterStorageServerResponse) {}
     rpc unregister_storage_server(StorageServer) returns (UnregisterStorageServerResponse) {}
+    rpc register_storage_group(StorageServer) returns (RegisterStorageGroupResponse) {}
+    rpc unregister_storage_group(StorageServer) returns (UnregisterStorageGroupResponse) {}
     rpc register_storage_client(StorageClient) returns (RegisterStorageClientResponse) {}
     rpc register_object(RegisterObjectRequest) returns (RegisterObjectResponse) {}
     rpc server_info(ServerInfoRequest) returns (ServerInfoResponse) {}
     rpc object_info(ObjectInfoRequest) returns (ObjectInfoResponse) {}
     rpc object_delete(ObjectDeleteRequest) returns (ObjectDeleteResponse) {}
 }
+
 
 message ObjectDeleteRequest {
     repeated string object_id_hex_list = 1;
@@ -46,6 +49,7 @@ message RegisterObjectRequest {
     string server_hostname = 2;
     repeated string push_hostname_list = 3;
     repeated string push_group_list = 4;
+    double live_time = 5;
 }
 
 message RegisterObjectResponse {}
@@ -74,6 +78,10 @@ message RegisterStorageClientResponse {
     EtcdServer etcd_server = 1;
     StorageServer storage_server = 2;
 }
+
+message RegisterStorageGroupResponse {}
+
+message UnregisterStorageGroupResponse {}
 
 message EtcdServer {
     string ip_addr = 1;

@@ -48,6 +48,9 @@ class StorageClient(object):
         # self.server_rpc_channel = wrap_channel(
         #     grpc.insecure_channel(self.server_rpc_target))
 
+        # the expire-time set of objects with ttl
+        self.expire_set = {}
+
     def wait_for_server(self):
         for i in range(1, 101):
             response = self.node_tracker_client.register_storage_client(
@@ -133,6 +136,73 @@ class StorageClient(object):
     def delete(self, object_id_hex_list):
         self.node_tracker_client.object_delelte(object_id_hex_list)
 
+    # the following methods if the implement of TTL function¬
+    @trace(span_name='span')
+    def ttlGet(self, object_id_hex, src_node=None, via_rpc=False, *, span=None):
+        check_object_id_hex(object_id_hex)
+
+        # ttl process
+        if object_id_hex in self.expire_set:
+            end_time = self.expire_set[object_id_hex]
+            current_time = time.time()
+            if current_time > end_time:
+                self.delete(object_id_hex)
+                if span:
+                    span.log_kv({'data_size': 0})
+                return None
+
+        object_id = plasma.ObjectID(bytes.fromhex(object_id_hex))
+        data = self.plasma_client_get(object_id, 0)
+
+        if data != plasma.ObjectNotAvailable:
+            if span:
+                span.log_kv({'data_size': len(data)})
+            return data
+
+        self.fetch(object_id_hex, src_node, via_rpc)
+        data = self.plasma_client_get(object_id, 0)
+        if data == plasma.ObjectNotAvailable:
+            if span:
+                span.log_kv({'data_size': 0})
+            return None
+        else:
+            if span:
+                span.log_kv({'data_size': len(data)})
+            return data
+
+    @trace(span_name='span')
+    def ttlPut(self, data, object_id=None, prefetch_hostname=None, prefetch_group=None, span=None, live_time=0.0):
+        if object_id is not None:
+            check_object_id_hex(object_id)
+            object_id = plasma.ObjectID(bytes.fromhex(object_id))
+        else:
+            object_id = plasma.ObjectID(self.rng.bytes(20))
+
+        if prefetch_hostname is None:
+            prefetch_hostname = []
+        elif not isinstance(prefetch_hostname, list):
+            prefetch_hostname = [prefetch_hostname]
+
+        if prefetch_group is None:
+            prefetch_group = []
+        elif not isinstance(prefetch_group, list):
+            prefetch_group = [prefetch_group]
+
+        ref = self.plasma_client_put(data, object_id)
+        object_id_hex = ref.binary().hex()
+
+        self.node_tracker_client.register_object(
+            object_id_hex, self.hostname, prefetch_hostname, prefetch_group, live_time)
+        if span:
+            span.log_kv({'data_size': len(data)})
+
+        
+
+        return object_id_hex
+
+
+
+
 
 thread_local = threading.local()
 
@@ -162,10 +232,13 @@ class Client:
         return self._get_local_client().register_group(*args, **kwargs)
 
     def put(self, *args, **kwargs):
-        return self._get_local_client().put(*args, **kwargs)
+        return self._get_local_client().ttlPut(*args, **kwargs)
 
     def get(self, *args, **kwargs):
-        return self._get_local_client().get(*args, **kwargs)
+        return self._get_local_client().ttlGet(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         return self._get_local_client().delete(*args, **kwargs)
+
+    def getExpireSet(self):
+        return self._get_local_client().expire_set

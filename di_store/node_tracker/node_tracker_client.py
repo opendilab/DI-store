@@ -56,7 +56,7 @@ class NodeTrackerClient:
                 ))
             return response
 
-    def register_object(self, object_id_hex, server_hostname, push_hostname_list, push_group_list):
+    def register_object(self, object_id_hex, server_hostname, push_hostname_list, push_group_list, live_time):
         with grpc.insecure_channel(self.node_tracker_rpc_target) as channel:
             stub = node_tracker_pb2_grpc.NodeTrackerStub(wrap_channel(channel))
             response = stub.register_object(
@@ -64,7 +64,8 @@ class NodeTrackerClient:
                     object_id_hex=object_id_hex,
                     server_hostname=server_hostname,
                     push_hostname_list=push_hostname_list,
-                    push_group_list=push_group_list
+                    push_group_list=push_group_list,
+                    live_time = live_time
                 ))
             return response
 
