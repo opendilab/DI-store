@@ -171,7 +171,7 @@ class StorageClient(object):
             return data
 
     @trace(span_name='span')
-    def ttlPut(self, data, object_id=None, prefetch_hostname=None, prefetch_group=None, span=None, ttl=0):
+    def ttlPut(self, data, object_id=None, prefetch_hostname=None, prefetch_group=None, span=None, live_time=0.0):
         if object_id is not None:
             check_object_id_hex(object_id)
             object_id = plasma.ObjectID(bytes.fromhex(object_id))
@@ -192,28 +192,13 @@ class StorageClient(object):
         object_id_hex = ref.binary().hex()
 
         self.node_tracker_client.register_object(
-            object_id_hex, self.hostname, prefetch_hostname, prefetch_group)
+            object_id_hex, self.hostname, prefetch_hostname, prefetch_group, live_time)
         if span:
             span.log_kv({'data_size': len(data)})
 
-        # ttl process. the time unit of ttl is second
-        if ttl:
-            self.removeTTLObjects()
-            expire_time = self.getExpireTime(ttl)
-            self.expire_set[object_id_hex] = expire_time
+        
 
         return object_id_hex
-
-    def getExpireTime(self, ttl=0):
-        start_time = time.time()
-        return start_time + ttl
-
-    def removeTTLObjects(self):
-        current_time = time.time()
-        for key in list(self.expire_set.keys()):
-            if self.expire_set[key] < current_time:
-                self.delete(key)
-                self.expire_set.pop(key)
 
 
 

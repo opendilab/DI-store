@@ -1,6 +1,7 @@
 package node_tracker
 
 import (
+	"container/heap"
 	"context"
 	"di_store/metadata"
 	pbNodeTracker "di_store/pb/node_tracker"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/opentracing/opentracing-go"
 	ot_log "github.com/opentracing/opentracing-go/log"
@@ -35,6 +37,9 @@ type NodeTracker struct {
 	deleteTaskQueue   chan func() error
 	pushInfoTaskQueue chan func() error
 	m                 sync.Mutex
+	ttlQueue          PriorityQueue
+	ttlmutex          chan bool
+	itemchan          chan Item
 }
 
 func NewNodeTracker(etcdHost string, etcdPort int, rpcHost string, rpcPort int) (*NodeTracker, error) {
@@ -48,13 +53,20 @@ func NewNodeTracker(etcdHost string, etcdPort int, rpcHost string, rpcPort int) 
 	if err != nil {
 		return nil, err
 	}
+
+	// ttl part
+	ttlmutex := make(chan bool, 1)
+	ttlQueue := make(PriorityQueue, 0)
+	itemchan := make(chan Item, 10)
+	go pushItem(ttlmutex, itemchan, &ttlQueue)
+
 	fetchTaskQueue := make(chan func() error, util.CommonConfig.TaskQueueCap)
 	deleteTaskQueue := make(chan func() error, util.CommonConfig.TaskQueueCap)
 	pushInfoTaskQueue := make(chan func() error, util.CommonConfig.TaskQueueCap)
 	go taskMainLoop(fetchTaskQueue)
 	go taskMainLoop(deleteTaskQueue)
 	go taskMainLoop(pushInfoTaskQueue)
-	return &NodeTracker{
+	tracker := &NodeTracker{
 		EtcdClient:        metadata.NewClient(client),
 		EtcdHost:          etcdHost,
 		EtcdPort:          etcdPort,
@@ -63,7 +75,114 @@ func NewNodeTracker(etcdHost string, etcdPort int, rpcHost string, rpcPort int) 
 		fetchTaskQueue:    fetchTaskQueue,
 		deleteTaskQueue:   deleteTaskQueue,
 		pushInfoTaskQueue: pushInfoTaskQueue,
-	}, nil
+		ttlQueue:          ttlQueue,
+		ttlmutex:          ttlmutex,
+		itemchan:          itemchan,
+	}
+	go scanExpireObject(ttlmutex, &ttlQueue, tracker)
+	return tracker, nil
+}
+
+// TTL part
+
+type Item struct {
+	objectID   string
+	expiretime float64
+	index      int
+}
+
+type PriorityQueue []*Item
+
+func (pq PriorityQueue) Len() int {
+	return len(pq)
+}
+
+func (pq PriorityQueue) Less(i, j int) bool {
+	return pq[i].expiretime < pq[j].expiretime
+}
+
+func (pq PriorityQueue) Swap(i, j int) {
+	pq[i], pq[j] = pq[j], pq[i]
+	pq[i].index = i
+	pq[j].index = j
+}
+
+func (pq *PriorityQueue) Push(x interface{}) {
+	n := len(*pq)
+	item := x.(*Item)
+	item.index = n
+	*pq = append(*pq, item)
+
+}
+
+func (pq *PriorityQueue) Pop() interface{} {
+	old := *pq
+	n := len(old)
+	item := old[n-1]
+	item.index = -1
+	*pq = old[0 : n-1]
+	return item
+}
+
+func (pq *PriorityQueue) update(item *Item, objectID string, expiretime float64) {
+	item.objectID = objectID
+	item.expiretime = expiretime
+	heap.Fix(pq, item.index)
+}
+
+func scanExpireObject(mutex chan bool, pq *PriorityQueue, tracker *NodeTracker) {
+	for {
+		if pq.Len() == 0 {
+			time.Sleep(2 * time.Second)
+		} else {
+			mutex <- true
+			currentTime := float64(time.Now().Unix())
+			// 将过期对象加入待删除列表
+			objList := []string{}
+			for pq.Len() > 0 {
+				if currentTime > (*pq)[0].expiretime {
+					item := heap.Pop(pq).(*Item)
+					objList = append(objList, item.objectID)
+					// fmt.Printf("the expired object is %v\n", item.objectID)
+				} else {
+					break
+				}
+			}
+			// delete object
+			if len(objList) > 0 {
+				ctx, cancel := context.WithTimeout(context.Background(), util.CommonConfig.RequestTimeout)
+				defer cancel()
+				tracker.ObjectDelete(ctx, &pbNodeTracker.ObjectDeleteRequest{ObjectIdHexList: objList})
+			}
+			// 计算需睡眠多少ms
+			sleepTime := int64(0)
+			if pq.Len() > 0 {
+				sleepTime = int64(((*pq)[0].expiretime - currentTime) * 1000)
+			} else {
+				sleepTime = 2000
+			}
+			// fmt.Println("the sleeptime is ", sleepTime)
+			<-mutex
+			time.Sleep(time.Duration(sleepTime) * time.Millisecond)
+		}
+
+	}
+}
+
+func getExpireTime(liveTime float64) float64 {
+	currentTime := float64(time.Now().Unix())
+	return currentTime + liveTime
+
+}
+
+func pushItem(mutex chan bool, itemchan chan Item, pq *PriorityQueue) {
+	for {
+		data := <-itemchan
+		mutex <- true
+		heap.Push(pq, &data)
+		// fmt.Println("the pushed item is ", data.objectID)
+		<-mutex
+	}
 }
 
 func getIPFromCtx(ctx context.Context) (ip string) {
@@ -383,6 +502,18 @@ func (tracker *NodeTracker) RegisterObject(ctx context.Context, in *pbNodeTracke
 	serverHostname := in.GetServerHostname()
 	pushHostnameList := in.GetPushHostnameList()
 	pushGroupList := in.GetPushGroupList()
+	liveTime := in.GetLiveTime()
+	// ttl part
+	// fmt.Printf("the liveTime of object is: %v\n", liveTime)
+	// fmt.Printf("the type of liveTime is %T\n", liveTime)
+	// fmt.Printf("the type of objID is %T\n", objID)
+	if liveTime > 0 {
+		expireTime := getExpireTime(liveTime)
+		tracker.itemchan <- Item{
+			objectID:   objID,
+			expiretime: expireTime,
+		}
+	}
 
 	if len(pushGroupList) > 0 || len(pushHostnameList) > 0 {
 		log.Debugf("pushHostnameList: %v", pushHostnameList)
